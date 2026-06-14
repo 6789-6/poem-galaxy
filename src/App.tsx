@@ -11,9 +11,13 @@ export type Selection =
   | { kind: 'poem'; poem: Poem; poet: Poet };
 
 export type GalaxyMode = 'explore' | 'network' | 'reading' | 'tour';
+export type VisualQuality = 'performance' | 'balanced' | 'high';
 
 const splitPoemLines = (text: string) =>
   (text.match(/[^，。！？；]+[，。！？；]?/g) ?? [text]).map((line) => line.trim()).filter(Boolean);
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 function App() {
   const [selection, setSelection] = useState<Selection>({ kind: 'poet', poet: poetById['li-bai'] });
@@ -21,6 +25,17 @@ function App() {
   const [query, setQuery] = useState('');
   const [activeDynasties, setActiveDynasties] = useState<Dynasty[]>(dynastyOrder);
   const [focusId, setFocusId] = useState('li-bai');
+  const [visualQuality, setVisualQuality] = useState<VisualQuality>(() => (prefersReducedMotion() ? 'performance' : 'high'));
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = () => {
+      if (media.matches) setVisualQuality('performance');
+    };
+    media.addEventListener?.('change', handleChange);
+    return () => media.removeEventListener?.('change', handleChange);
+  }, []);
 
   const filteredPoets = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,20 +89,20 @@ function App() {
         setSelection({ kind: 'poet', poet: filteredPoets[0] });
         setFocusId(filteredPoets[0].id);
       }
-    }, 320);
+    }, visualQuality === 'performance' ? 420 : 320);
 
     return () => window.clearTimeout(timer);
-  }, [query, filteredPoems, filteredPoets]);
+  }, [query, filteredPoems, filteredPoets, visualQuality]);
 
   const verseFragments = useMemo(() => {
     if (selection.kind === 'poem') {
-      return splitPoemLines(selection.poem.fullText).slice(0, 9);
+      return splitPoemLines(selection.poem.fullText).slice(0, visualQuality === 'performance' ? 5 : 9);
     }
 
     const poetPoems = poemsByPoet[selection.poet.id] ?? [];
     const poemLines = poetPoems.flatMap((poem) => splitPoemLines(poem.excerpt));
-    return [...selection.poet.works.map((work) => `《${work}》`), ...poemLines, selection.poet.summary].slice(0, 9);
-  }, [selection]);
+    return [...selection.poet.works.map((work) => `《${work}》`), ...poemLines, selection.poet.summary].slice(0, visualQuality === 'performance' ? 5 : 9);
+  }, [selection, visualQuality]);
 
   const activeRelations = useMemo(
     () => selection.poet.relations.map((relation) => poetById[relation]).filter((poet): poet is Poet => Boolean(poet)),
@@ -121,7 +136,7 @@ function App() {
   const accent = dynastyColors[selection.poet.dynasty];
 
   return (
-    <div className={`app-shell mode-${mode} ${searchActive ? 'searching' : ''}`}>
+    <div className={`app-shell mode-${mode} quality-${visualQuality} ${searchActive ? 'searching' : ''}`}>
       <GalaxyScene
         mode={mode}
         focusId={focusId}
@@ -129,6 +144,7 @@ function App() {
         filteredPoets={filteredPoets}
         onSelectPoet={handleSelectPoet}
         selection={selection}
+        visualQuality={visualQuality}
       />
 
       <div className="sky-noise" />
@@ -190,6 +206,8 @@ function App() {
         setQuery={setQuery}
         mode={mode}
         setMode={setMode}
+        visualQuality={visualQuality}
+        setVisualQuality={setVisualQuality}
         filteredPoets={filteredPoets}
         filteredPoems={filteredPoems}
         activeDynasties={activeDynasties}
@@ -224,7 +242,7 @@ function App() {
         <span>SEARCH 自动飞入</span>
         <span>CLICK 锁定诗人恒星</span>
         <span>READING 诗句悬浮</span>
-        <span>NETWORK 关系大图</span>
+        <span>QUALITY {visualQuality.toUpperCase()}</span>
       </div>
     </div>
   );
