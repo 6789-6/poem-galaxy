@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { VisualQuality } from '../App';
+import type { VisualQuality } from '../config/renderPresets';
+import { RENDER_PRESETS } from '../config/renderPresets';
 import type { Dynasty } from '../data/poetry';
 import { dynastyOrder } from '../data/poetry';
 import { generateGalaxyBuffers } from '../lib/galaxy';
@@ -16,7 +17,10 @@ const vertexShader = `
   uniform float uTime;
   uniform float uPixelRatio;
   uniform float uActiveDynasties[6];
-  uniform float uQualityScale;
+  uniform float uPointScale;
+  uniform float uMaxPointSize;
+  uniform float uTwinkleAmp;
+  uniform float uDynastyFade;
 
   varying vec3 vColor;
   varying float vAlpha;
@@ -33,14 +37,18 @@ const vertexShader = `
 
   void main() {
     float active = dynastyVisibility(dynasty);
-    float pulse = 0.92 + 0.08 * sin(uTime * 1.45 + twinkle * 6.2831853);
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    float pulse = 1.0 + uTwinkleAmp * sin(uTime * 1.45 + twinkle * 6.2831853);
 
-    vColor = color * mix(vec3(0.2, 0.24, 0.34), vec3(1.0), active);
-    vAlpha = mix(0.08, 0.96, active) * uQualityScale;
+    vColor = color * mix(vec3(uDynastyFade), vec3(1.0), active);
+    vAlpha = mix(0.08, 0.96, active);
     vTwinkle = twinkle;
 
-    gl_PointSize = clamp(size * pulse * (260.0 / max(8.0, -mvPosition.z)) * uPixelRatio * 72.0 * uQualityScale, 1.0, 24.0);
+    gl_PointSize = clamp(
+      size * pulse * (uPointScale / max(8.0, -mvPosition.z)) * uPixelRatio,
+      1.0,
+      uMaxPointSize
+    );
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -51,16 +59,18 @@ const fragmentShader = `
   varying float vTwinkle;
 
   void main() {
-    vec2 uv = gl_PointCoord - 0.5;
-    float r = length(uv);
-    float softDisc = smoothstep(0.5, 0.16, r);
-    float core = smoothstep(0.18, 0.0, r);
-    float halo = smoothstep(0.5, 0.28, r) * 0.28;
-    float alpha = (softDisc * 0.72 + core * 0.38 + halo) * vAlpha;
+    vec2 uv = gl_PointCoord * 2.0 - 1.0;
+    float r2 = dot(uv, uv);
+    if (r2 > 1.0) discard;
 
-    if (alpha < 0.018) discard;
+    float body = exp(-r2 * 9.5);
+    float core = exp(-r2 * 42.0);
+    float halo = smoothstep(1.0, 0.18, r2) * 0.12;
+    float alpha = (body * 0.76 + core * 0.30 + halo) * vAlpha;
 
-    vec3 bloomTint = vColor * (1.0 + core * 1.15 + vTwinkle * 0.12);
+    if (alpha < 0.014) discard;
+
+    vec3 bloomTint = vColor * (1.0 + core * 1.05 + vTwinkle * 0.10);
     gl_FragColor = vec4(bloomTint, alpha);
   }
 `;
@@ -74,38 +84,23 @@ function createDynastyMask(activeDynasties: Dynasty[]) {
   return mask;
 }
 
-function qualityToCount(visualQuality: VisualQuality) {
-  if (visualQuality === 'performance') return 85000;
-  if (visualQuality === 'balanced') return 120000;
-  return 150000;
-}
-
-function qualityToScale(visualQuality: VisualQuality) {
-  if (visualQuality === 'performance') return 0.72;
-  if (visualQuality === 'balanced') return 0.9;
-  return 1;
-}
-
 const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality }: { activeDynasties: Dynasty[]; visualQuality: VisualQuality }) {
   const points = useRef<THREE.Points>(null);
-  const count = qualityToCount(visualQuality);
-  const qualityScale = qualityToScale(visualQuality);
-  const galaxy = useMemo(() => generateGalaxyBuffers(count), [count]);
+  const preset = RENDER_PRESETS[visualQuality];
+  const galaxy = useMemo(() => generateGalaxyBuffers(preset.starCount), [preset.starCount]);
 
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
-    const dynasty = new Float32Array(galaxy.total);
     const twinkle = new Float32Array(galaxy.total);
 
     for (let i = 0; i < galaxy.total; i += 1) {
-      dynasty[i] = galaxy.dynastyIndex[i];
       twinkle[i] = ((i * 16807) % 997) / 997;
     }
 
     g.setAttribute('position', new THREE.BufferAttribute(galaxy.positions, 3));
     g.setAttribute('color', new THREE.BufferAttribute(galaxy.colors, 3));
     g.setAttribute('size', new THREE.BufferAttribute(galaxy.sizes, 1));
-    g.setAttribute('dynasty', new THREE.BufferAttribute(dynasty, 1));
+    g.setAttribute('dynasty', new THREE.Uint8BufferAttribute(galaxy.dynastyIndex, 1));
     g.setAttribute('twinkle', new THREE.BufferAttribute(twinkle, 1));
     g.computeBoundingSphere();
     return g;
@@ -116,16 +111,20 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality
       new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
-          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.75) },
+          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, preset.starPixelRatioCap) },
           uActiveDynasties: { value: createDynastyMask(activeDynasties) },
-          uQualityScale: { value: qualityScale }
+          uPointScale: { value: preset.starPointScale },
+          uMaxPointSize: { value: preset.starPointMax },
+          uTwinkleAmp: { value: preset.twinkleAmplitude },
+          uDynastyFade: { value: 0.14 }
         },
         vertexShader,
         fragmentShader,
         vertexColors: true,
         transparent: true,
         depthWrite: false,
-        blending: THREE.AdditiveBlending
+        blending: THREE.AdditiveBlending,
+        toneMapped: false
       }),
     []
   );
@@ -135,9 +134,11 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality
   }, [activeDynasties, material]);
 
   useEffect(() => {
-    material.uniforms.uQualityScale.value = qualityScale;
-    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.75);
-  }, [material, qualityScale, visualQuality]);
+    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, preset.starPixelRatioCap);
+    material.uniforms.uPointScale.value = preset.starPointScale;
+    material.uniforms.uMaxPointSize.value = preset.starPointMax;
+    material.uniforms.uTwinkleAmp.value = preset.twinkleAmplitude;
+  }, [material, preset]);
 
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.elapsedTime;
