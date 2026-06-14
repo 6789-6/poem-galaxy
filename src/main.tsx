@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './runtime/preloadRecover';
 import App from './App';
 import './styles.css';
 import './video.css';
