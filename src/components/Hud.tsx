@@ -1,5 +1,6 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
-import type { GalaxyMode, VisualQuality } from '../App';
+import type { GalaxyMode } from '../App';
+import type { VisualQuality } from '../config/renderPresets';
 import type { Dynasty, Poem, Poet } from '../data/poetry';
 import { dynastyColors, dynastyOrder, poetById } from '../data/poetry';
 
@@ -35,13 +36,13 @@ const modeHint: Record<GalaxyMode, string> = {
 const qualityLabel: Record<VisualQuality, string> = {
   performance: '性能',
   balanced: '均衡',
-  high: '电影'
+  cinematic: '电影'
 };
 
 const qualityHint: Record<VisualQuality, string> = {
   performance: '关闭 Bloom/DOF，降低 DPR 和动态标签，适合低配设备。',
   balanced: '保留 Bloom，关闭 DOF，兼顾流畅与视频质感。',
-  high: '启用 Bloom、读诗 DOF 和完整星空质感，适合桌面端。'
+  cinematic: '启用 Bloom、读诗 DOF 和完整星空质感，适合桌面端。'
 };
 
 export default function Hud({
@@ -87,7 +88,7 @@ export default function Hud({
       <section className="control-section quality-section">
         <div className="section-title">画质模式</div>
         <div className="quality-switcher">
-          {(['performance', 'balanced', 'high'] as VisualQuality[]).map((quality) => (
+          {(['performance', 'balanced', 'cinematic'] as VisualQuality[]).map((quality) => (
             <button
               key={quality}
               className={visualQuality === quality ? 'active' : ''}
