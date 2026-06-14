@@ -1,0 +1,305 @@
+.app-shell.searching .center-reticle {
+  opacity: 0.82;
+  animation: reticle-lock 1.2s ease-in-out infinite;
+}
+
+.search-warp {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  width: 42vmin;
+  height: 42vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 260ms ease;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  box-shadow:
+    0 0 40px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 0 90px rgba(111, 238, 255, 0.05);
+}
+
+.search-warp i {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--accent) 36%, transparent);
+  animation: search-orbit 6s linear infinite;
+}
+
+.search-warp span {
+  position: absolute;
+  left: 50%;
+  bottom: -32px;
+  transform: translateX(-50%);
+  padding: 7px 13px;
+  border-radius: 999px;
+  color: rgba(236, 250, 255, 0.72);
+  background: rgba(1, 6, 16, 0.52);
+  border: 1px solid rgba(137, 231, 255, 0.15);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  font-size: 11px;
+  backdrop-filter: blur(12px);
+}
+
+.app-shell.searching .search-warp {
+  opacity: 0.88;
+}
+
+.poetry-verse-cloud {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  width: min(760px, 56vw);
+  height: min(520px, 56vh);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.poetry-verse-cloud span {
+  --angle: calc(var(--i) * 37deg);
+  position: absolute;
+  left: calc(50% + cos(var(--angle)) * 0px);
+  top: 50%;
+  max-width: 360px;
+  padding: 9px 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 16px;
+  color: rgba(255, 250, 232, 0.88);
+  background:
+    linear-gradient(135deg, rgba(3, 8, 20, 0.42), rgba(4, 20, 34, 0.18)),
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 48%);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 12%, transparent);
+  backdrop-filter: blur(10px);
+  font-family: "STKaiti", "KaiTi", "Songti SC", serif;
+  font-size: 17px;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 28%, transparent);
+  opacity: 0;
+  animation: verse-float 6.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 130ms);
+}
+
+.poetry-verse-cloud span:nth-child(1) { transform: translate(-48%, -280%); }
+.poetry-verse-cloud span:nth-child(2) { transform: translate(78%, -190%); }
+.poetry-verse-cloud span:nth-child(3) { transform: translate(110%, -30%); }
+.poetry-verse-cloud span:nth-child(4) { transform: translate(56%, 150%); }
+.poetry-verse-cloud span:nth-child(5) { transform: translate(-76%, 210%); }
+.poetry-verse-cloud span:nth-child(6) { transform: translate(-138%, 60%); }
+.poetry-verse-cloud span:nth-child(7) { transform: translate(-130%, -130%); }
+.poetry-verse-cloud span:nth-child(8) { transform: translate(8%, 260%); }
+.poetry-verse-cloud span:nth-child(9) { transform: translate(-6%, -18%); }
+
+.floating-verse-wrap,
+.network-label-wrap {
+  pointer-events: none;
+}
+
+.floating-verse {
+  pointer-events: none;
+  min-width: 120px;
+  padding: 7px 10px;
+  border-radius: 14px;
+  color: rgba(255, 252, 238, 0.9);
+  background: rgba(1, 7, 18, 0.42);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 24%, transparent);
+  backdrop-filter: blur(8px);
+  font-family: "STKaiti", "KaiTi", "Songti SC", serif;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  animation: verse-card-in 5s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.network-label-3d {
+  pointer-events: auto;
+  display: grid;
+  gap: 3px;
+  min-width: 82px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  color: rgba(245, 252, 255, 0.88);
+  background:
+    linear-gradient(135deg, rgba(1, 9, 20, 0.58), rgba(2, 15, 28, 0.34)),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 14%, transparent);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.network-label-3d strong {
+  font-size: 13px;
+}
+
+.network-label-3d span {
+  color: rgba(227, 241, 255, 0.54);
+  font-size: 10px;
+}
+
+.network-overview {
+  position: absolute;
+  z-index: 9;
+  right: 405px;
+  bottom: 82px;
+  width: 300px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  background:
+    linear-gradient(145deg, rgba(4, 12, 28, 0.62), rgba(1, 4, 13, 0.38)),
+    radial-gradient(circle at 52% 42%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 58%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46), inset 0 0 40px rgba(119, 232, 255, 0.05);
+  backdrop-filter: blur(22px) saturate(1.25);
+}
+
+.network-title {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.network-title small {
+  color: rgba(191, 237, 255, 0.58);
+  letter-spacing: 0.22em;
+  font-size: 10px;
+}
+
+.network-title strong {
+  color: #fff;
+  font-size: 15px;
+}
+
+.network-web {
+  position: relative;
+  height: 210px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+    radial-gradient(circle at center, rgba(133, 233, 255, 0.1), transparent 62%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.network-web::before,
+.network-web::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 76%;
+  height: 1px;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 54%, transparent), transparent);
+  opacity: 0.58;
+}
+
+.network-web::after {
+  transform: translate(-50%, -50%) rotate(62deg);
+}
+
+.network-web::before {
+  transform: translate(-50%, -50%) rotate(-24deg);
+}
+
+.network-node {
+  --angle: calc(var(--i) * 72deg - 48deg);
+  position: absolute;
+  left: calc(50% + 84px * cos(var(--angle)));
+  top: calc(50% + 70px * sin(var(--angle)));
+  transform: translate(-50%, -50%);
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #f3fbff;
+  background: color-mix(in srgb, var(--node) 15%, rgba(2, 9, 18, 0.66));
+  border: 1px solid color-mix(in srgb, var(--node) 52%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--node) 24%, transparent);
+  font-size: 12px;
+  z-index: 2;
+}
+
+.network-node.core {
+  left: 50%;
+  top: 50%;
+  color: #061019;
+  background: linear-gradient(135deg, #9ff4ff, #ffe9a8);
+  border-color: transparent;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 40%, transparent);
+  font-weight: 800;
+}
+
+.network-overview p {
+  margin: 10px 0 0;
+  color: rgba(227, 241, 255, 0.52);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.mode-reading .left-panel,
+.mode-reading .right-panel {
+  background:
+    linear-gradient(145deg, rgba(4, 10, 24, 0.43), rgba(2, 5, 14, 0.28)),
+    radial-gradient(circle at 18% 0%, rgba(255, 230, 160, 0.08), transparent 48%);
+}
+
+.mode-network .center-reticle {
+  width: 228px;
+  height: 228px;
+  border-color: rgba(255, 220, 140, 0.16);
+}
+
+@keyframes reticle-lock {
+  0%, 100% { box-shadow: 0 0 20px rgba(120, 231, 255, 0.06); }
+  50% { box-shadow: 0 0 54px rgba(120, 231, 255, 0.22); }
+}
+
+@keyframes search-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes verse-float {
+  0% { opacity: 0; filter: blur(4px); }
+  16%, 78% { opacity: 0.92; filter: blur(0); }
+  100% { opacity: 0; filter: blur(3px); }
+}
+
+@keyframes verse-card-in {
+  0% { opacity: 0.12; transform: translateY(6px) scale(0.96); }
+  22%, 80% { opacity: 0.9; transform: translateY(0) scale(1); }
+  100% { opacity: 0.16; transform: translateY(-6px) scale(0.98); }
+}
+
+@supports not (left: calc(50% + 10px * cos(20deg))) {
+  .network-node:nth-child(2) { left: 82%; top: 34%; }
+  .network-node:nth-child(3) { left: 76%; top: 72%; }
+  .network-node:nth-child(4) { left: 30%; top: 78%; }
+  .network-node:nth-child(5) { left: 18%; top: 38%; }
+  .network-node:nth-child(6) { left: 50%; top: 18%; }
+}
+
+@media (max-width: 1300px) {
+  .network-overview {
+    right: 24px;
+    bottom: 145px;
+  }
+
+  .poetry-verse-cloud {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .search-warp,
+  .network-overview {
+    display: none;
+  }
+}
