@@ -1,13 +1,15 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Html, OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import * as THREE from 'three';
-import type { GalaxyMode, Selection, VisualQuality } from '../App';
+import type { GalaxyMode, Selection } from '../App';
+import { RENDER_PRESETS, type VisualQuality } from '../config/renderPresets';
 import type { Dynasty, Poet } from '../data/poetry';
 import { dynastyColors, dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
-import { buildRelationshipSegments, generateNebulaBuffers, poetWorldPosition } from '../lib/galaxy';
+import { buildRelationshipSegments, poetWorldPosition } from '../lib/galaxy';
 import GpuStarfield from './GpuStarfield';
+import NebulaClouds from './NebulaClouds';
 import SceneEffects from './SceneEffects';
 
 type SceneProps = {
@@ -34,12 +36,10 @@ const splitPoemLines = (text: string) =>
 
 const softPointVertexShader = `
   attribute float size;
-
   uniform float uTime;
   uniform float uPixelRatio;
   uniform float uBaseSize;
   uniform float uMaxSize;
-
   varying vec3 vColor;
   varying float vAlphaPulse;
 
@@ -47,7 +47,6 @@ const softPointVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     float depthScale = 180.0 / max(18.0, -mvPosition.z);
     float shimmer = 0.92 + 0.08 * sin(uTime * 0.55 + position.x * 0.07 + position.z * 0.05);
-
     vColor = color;
     vAlphaPulse = shimmer;
     gl_PointSize = clamp(size * uBaseSize * depthScale * uPixelRatio, 1.0, uMaxSize);
@@ -57,29 +56,30 @@ const softPointVertexShader = `
 
 const softPointFragmentShader = `
   uniform float uOpacity;
-
   varying vec3 vColor;
   varying float vAlphaPulse;
 
   void main() {
-    vec2 uv = gl_PointCoord - 0.5;
-    float r = length(uv);
-    float body = smoothstep(0.5, 0.2, r);
-    float core = smoothstep(0.2, 0.0, r);
-    float alpha = (body * 0.58 + core * 0.36) * uOpacity * vAlphaPulse;
+    vec2 uv = gl_PointCoord * 2.0 - 1.0;
+    float r2 = dot(uv, uv);
+    if (r2 > 1.0) discard;
 
-    if (alpha < 0.01 || r > 0.5) discard;
+    float body = exp(-r2 * 8.0);
+    float core = exp(-r2 * 32.0) * 0.34;
+    float alpha = (body * 0.72 + core) * uOpacity * vAlphaPulse;
 
-    vec3 color = vColor * (0.72 + core * 0.65);
+    if (alpha < 0.01) discard;
+
+    vec3 color = vColor * (0.72 + core * 0.72);
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-function createSoftPointMaterial(baseSize: number, opacity: number, maxSize: number, visualQuality: VisualQuality) {
+function createSoftPointMaterial(baseSize: number, opacity: number, maxSize: number, pixelRatioCap: number) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.55) },
+      uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, pixelRatioCap) },
       uBaseSize: { value: baseSize },
       uOpacity: { value: opacity },
       uMaxSize: { value: maxSize }
@@ -118,14 +118,18 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
     const focus = target.current;
     const orbit = mode === 'tour' ? clock.current * 0.22 : clock.current * 0.06;
     const fly = flightBoost.current;
-    const distance = mode === 'reading' ? 14 + fly * 12 : mode === 'network' ? 58 : mode === 'tour' ? 72 : 32 + fly * 24;
-    const height = mode === 'network' ? 30 : mode === 'tour' ? 30 + Math.sin(clock.current * 0.18) * 8 : 13 + fly * 10;
+    const distance = mode === 'reading' ? 12 + fly * 10 : mode === 'network' ? 54 : mode === 'tour' ? 68 : 28 + fly * 26;
+    const height = mode === 'network' ? 30 : mode === 'tour' ? 30 + Math.sin(clock.current * 0.18) * 8 : 12 + fly * 10;
     const desired = new THREE.Vector3(
       focus.x + Math.cos(orbit + fly * 1.4) * distance,
       focus.y + height,
       focus.z + Math.sin(orbit + fly * 1.4) * distance * 0.78
     );
-    camera.position.lerp(desired, mode === 'tour' ? 0.012 : fly > 0.05 ? 0.065 : 0.04);
+
+    const perspectiveCamera = camera as THREE.PerspectiveCamera;
+    camera.position.lerp(desired, mode === 'tour' ? 0.014 : fly > 0.05 ? 0.085 : 0.045);
+    perspectiveCamera.fov = THREE.MathUtils.lerp(perspectiveCamera.fov, fly > 0.08 ? 46 : mode === 'reading' ? 42 : 54, 0.08);
+    perspectiveCamera.updateProjectionMatrix();
     camera.lookAt(focus);
   });
 
@@ -134,13 +138,14 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
 
 function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
   const points = useRef<THREE.Points>(null);
+  const preset = RENDER_PRESETS[visualQuality];
   const data = useMemo(() => {
     const random = mulberry32(40811);
-    const count = visualQuality === 'performance' ? 1200 : visualQuality === 'balanced' ? 2200 : 3200;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    for (let i = 0; i < count; i += 1) {
+    const positions = new Float32Array(preset.deepFieldCount * 3);
+    const colors = new Float32Array(preset.deepFieldCount * 3);
+    const sizes = new Float32Array(preset.deepFieldCount);
+
+    for (let i = 0; i < preset.deepFieldCount; i += 1) {
       const radius = 190 + random() * 130;
       const theta = random() * Math.PI * 2;
       const phi = Math.acos(2 * random() - 1);
@@ -153,20 +158,21 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
       colors[i * 3 + 2] = Math.min(1, tone * 1.12);
       sizes[i] = 0.42 + random() * 0.82;
     }
+
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    geometry.computeBoundingSphere();
     return geometry;
-  }, [visualQuality]);
+  }, [preset.deepFieldCount]);
 
-  const opacity = visualQuality === 'performance' ? 0.18 : visualQuality === 'balanced' ? 0.26 : 0.32;
-  const material = useMemo(() => createSoftPointMaterial(0.42, opacity, 4.5, visualQuality), []);
+  const material = useMemo(() => createSoftPointMaterial(0.42, preset.deepFieldOpacity, 4.5, preset.nebula.pixelRatioCap), []);
 
   useEffect(() => {
-    material.uniforms.uOpacity.value = opacity;
-    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.55);
-  }, [material, opacity, visualQuality]);
+    material.uniforms.uOpacity.value = preset.deepFieldOpacity;
+    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, preset.nebula.pixelRatioCap);
+  }, [material, preset]);
 
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.elapsedTime;
@@ -176,43 +182,6 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
   });
 
   return <points ref={points} geometry={data} material={material} frustumCulled={false} />;
-}
-
-function NebulaClouds({ visualQuality }: { visualQuality: VisualQuality }) {
-  const nebula = useMemo(() => generateNebulaBuffers(visualQuality === 'performance' ? 9000 : visualQuality === 'balanced' ? 18000 : 26000), [visualQuality]);
-  const geometry = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    const sizes = new Float32Array(nebula.positions.length / 3);
-    for (let i = 0; i < sizes.length; i += 1) {
-      sizes[i] = 0.42 + (((i * 9301) % 997) / 997) * 1.15;
-    }
-    g.setAttribute('position', new THREE.BufferAttribute(nebula.positions, 3));
-    g.setAttribute('color', new THREE.BufferAttribute(nebula.colors, 3));
-    g.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    return g;
-  }, [nebula]);
-
-  const opacity = visualQuality === 'performance' ? 0.035 : visualQuality === 'balanced' ? 0.052 : 0.066;
-  const material = useMemo(() => createSoftPointMaterial(0.68, opacity, visualQuality === 'high' ? 7.2 : 5.8, visualQuality), []);
-
-  const group = useRef<THREE.Points>(null);
-
-  useEffect(() => {
-    material.uniforms.uOpacity.value = opacity;
-    material.uniforms.uBaseSize.value = visualQuality === 'performance' ? 0.56 : visualQuality === 'balanced' ? 0.62 : 0.68;
-    material.uniforms.uMaxSize.value = visualQuality === 'high' ? 7.2 : 5.8;
-    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.55);
-  }, [material, opacity, visualQuality]);
-
-  useFrame(({ clock }) => {
-    material.uniforms.uTime.value = clock.elapsedTime;
-    if (!group.current) return;
-    const speed = visualQuality === 'performance' ? 0.35 : 1;
-    group.current.rotation.y = Math.sin(clock.elapsedTime * 0.02 * speed) * 0.08;
-    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.013 * speed) * 0.025;
-  });
-
-  return <points ref={group} geometry={geometry} material={material} frustumCulled={false} />;
 }
 
 function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
@@ -225,6 +194,7 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const baseColor = new THREE.Color(color);
+
     for (let i = 0; i < count; i += 1) {
       const radius = 3.5 + Math.pow(random(), 0.58) * (mode === 'reading' ? 16 : 9);
       const angle = random() * Math.PI * 2;
@@ -238,9 +208,11 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
       colors[i * 3 + 1] = Math.min(1, baseColor.g * glow + 0.14);
       colors[i * 3 + 2] = Math.min(1, baseColor.b * glow + 0.2);
     }
+
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.computeBoundingSphere();
     return geometry;
   }, [color, mode, poet.id, visualQuality]);
 
@@ -254,7 +226,7 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
   return (
     <group ref={group} position={poet.position}>
       <points geometry={data} frustumCulled={false}>
-        <pointsMaterial vertexColors size={0.11} sizeAttenuation transparent opacity={mode === 'reading' ? 0.9 : 0.68} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <pointsMaterial vertexColors size={0.11} sizeAttenuation transparent opacity={mode === 'reading' ? 0.9 : 0.68} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </points>
       {visualQuality !== 'performance' && [4.2, 7.6, 11.2, 15.1].map((radius, index) => (
         <mesh key={radius} rotation={[Math.PI / 2 + index * 0.1, 0.2 * index, index * 0.45]}>
@@ -367,7 +339,7 @@ function PoetStar({ poet, selected, dimmed, visualQuality, onSelect }: { poet: P
     if (outerHalo.current) outerHalo.current.scale.setScalar((5.4 + poet.brightness * 2.1) * (selected ? 1.55 : 1) * pulse);
   });
 
-  const emissiveIntensity = selected ? 8.5 : isMajor ? 1.35 : 0.72;
+  const emissiveIntensity = selected ? 3.6 : isMajor ? 1.8 : 0.72;
 
   return (
     <group position={poet.position}>
@@ -503,11 +475,11 @@ function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection
 }
 
 export default function GalaxyScene(props: SceneProps) {
-  const dpr: [number, number] = props.visualQuality === 'performance' ? [1, 1] : props.visualQuality === 'balanced' ? [1, 1.35] : [1, 1.75];
+  const preset = RENDER_PRESETS[props.visualQuality];
 
   return (
     <Canvas
-      dpr={dpr}
+      dpr={preset.dpr}
       gl={{ antialias: props.visualQuality !== 'performance', powerPreference: 'high-performance', alpha: false }}
       onCreated={({ gl }) => {
         gl.setClearColor('#01020a');
