@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import GalaxyScene from './components/GalaxyScene';
 import Hud from './components/Hud';
 import PoetryPanel from './components/PoetryPanel';
@@ -120,7 +121,7 @@ function App() {
             key={dynasty}
             className={activeDynasties.includes(dynasty) ? 'active' : ''}
             onClick={() => toggleDynasty(dynasty)}
-            style={{ '--era': dynastyColors[dynasty] } as React.CSSProperties}
+            style={{ '--era': dynastyColors[dynasty] } as CSSProperties}
           >
             <i />
             <span>{dynasty}</span>
