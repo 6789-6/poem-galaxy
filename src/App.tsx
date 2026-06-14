@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import GalaxyScene from './components/GalaxyScene';
 import Hud from './components/Hud';
 import PoetryPanel from './components/PoetryPanel';
 import type { Dynasty, Poem, Poet } from './data/poetry';
-import { dynastyColors, dynastyOrder, poems, poetById, poets } from './data/poetry';
+import { dynastyColors, dynastyOrder, poems, poemsByPoet, poetById, poets } from './data/poetry';
 
 export type Selection =
   | { kind: 'poet'; poet: Poet }
   | { kind: 'poem'; poem: Poem; poet: Poet };
 
 export type GalaxyMode = 'explore' | 'network' | 'reading' | 'tour';
+
+const splitPoemLines = (text: string) =>
+  (text.match(/[^，。！？；]+[，。！？；]?/g) ?? [text]).map((line) => line.trim()).filter(Boolean);
 
 function App() {
   const [selection, setSelection] = useState<Selection>({ kind: 'poet', poet: poetById['li-bai'] });
@@ -42,6 +45,55 @@ function App() {
     });
   }, [activeDynasties, query]);
 
+  useEffect(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return;
+
+    const timer = window.setTimeout(() => {
+      const directPoet = filteredPoets.find((poet) => poet.name.toLowerCase().includes(q));
+      const directPoem = filteredPoems.find((poem) =>
+        [poem.title, poem.excerpt, poem.fullText].some((text) => text.toLowerCase().includes(q))
+      );
+
+      if (directPoem) {
+        const poet = poetById[directPoem.poetId];
+        setSelection({ kind: 'poem', poem: directPoem, poet });
+        setFocusId(poet.id);
+        setMode('reading');
+        return;
+      }
+
+      if (directPoet) {
+        setSelection({ kind: 'poet', poet: directPoet });
+        setFocusId(directPoet.id);
+        setMode('explore');
+        return;
+      }
+
+      if (filteredPoets[0]) {
+        setSelection({ kind: 'poet', poet: filteredPoets[0] });
+        setFocusId(filteredPoets[0].id);
+      }
+    }, 320);
+
+    return () => window.clearTimeout(timer);
+  }, [query, filteredPoems, filteredPoets]);
+
+  const verseFragments = useMemo(() => {
+    if (selection.kind === 'poem') {
+      return splitPoemLines(selection.poem.fullText).slice(0, 9);
+    }
+
+    const poetPoems = poemsByPoet[selection.poet.id] ?? [];
+    const poemLines = poetPoems.flatMap((poem) => splitPoemLines(poem.excerpt));
+    return [...selection.poet.works.map((work) => `《${work}》`), ...poemLines, selection.poet.summary].slice(0, 9);
+  }, [selection]);
+
+  const activeRelations = useMemo(
+    () => selection.poet.relations.map((relation) => poetById[relation]).filter((poet): poet is Poet => Boolean(poet)),
+    [selection]
+  );
+
   function handleSelectPoet(poet: Poet) {
     setSelection({ kind: 'poet', poet });
     setFocusId(poet.id);
@@ -65,8 +117,11 @@ function App() {
     });
   }
 
+  const searchActive = query.trim().length > 0;
+  const accent = dynastyColors[selection.poet.dynasty];
+
   return (
-    <div className={`app-shell mode-${mode}`}>
+    <div className={`app-shell mode-${mode} ${searchActive ? 'searching' : ''}`}>
       <GalaxyScene
         mode={mode}
         focusId={focusId}
@@ -78,10 +133,45 @@ function App() {
 
       <div className="sky-noise" />
       <div className="vignette" />
+      <div className="search-warp" style={{ '--accent': accent } as CSSProperties}>
+        <i />
+        <span>{searchActive ? `正在解析「${query.trim()}」的诗歌坐标` : '等待诗歌坐标输入'}</span>
+      </div>
       <div className="center-reticle">
         <i />
-        <span>POEM COORDINATE LOCK</span>
+        <span>{selection.kind === 'poem' ? `POEM LOCK · ${selection.poem.title}` : `POET LOCK · ${selection.poet.name}`}</span>
       </div>
+
+      {mode === 'reading' && (
+        <div className="poetry-verse-cloud" style={{ '--accent': accent } as CSSProperties}>
+          {verseFragments.map((line, index) => (
+            <span key={`${line}-${index}`} style={{ '--i': index } as CSSProperties}>{line}</span>
+          ))}
+        </div>
+      )}
+
+      {mode === 'network' && (
+        <div className="network-overview" style={{ '--accent': accent } as CSSProperties}>
+          <div className="network-title">
+            <small>RELATION GRAPH</small>
+            <strong>{selection.poet.name} 的诗人关系网络</strong>
+          </div>
+          <div className="network-web">
+            <button className="network-node core" onClick={() => handleSelectPoet(selection.poet)}>{selection.poet.name}</button>
+            {activeRelations.map((poet, index) => (
+              <button
+                key={poet.id}
+                className="network-node"
+                onClick={() => handleSelectPoet(poet)}
+                style={{ '--i': index, '--node': dynastyColors[poet.dynasty] } as CSSProperties}
+              >
+                {poet.name}
+              </button>
+            ))}
+          </div>
+          <p>点击节点可让镜头飞入对应诗人恒星。</p>
+        </div>
+      )}
 
       <div className="top-title">
         <div>
@@ -131,10 +221,10 @@ function App() {
 
       <div className="bottom-console">
         <div className="scanline" />
-        <span>DRAG 旋转星云</span>
-        <span>WHEEL 缩放</span>
+        <span>SEARCH 自动飞入</span>
         <span>CLICK 锁定诗人恒星</span>
-        <span>NETWORK 关系航线</span>
+        <span>READING 诗句悬浮</span>
+        <span>NETWORK 关系大图</span>
       </div>
     </div>
   );
