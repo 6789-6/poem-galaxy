@@ -1,5 +1,5 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
-import type { GalaxyMode } from '../App';
+import type { GalaxyMode, VisualQuality } from '../App';
 import type { Dynasty, Poem, Poet } from '../data/poetry';
 import { dynastyColors, dynastyOrder, poetById } from '../data/poetry';
 
@@ -8,6 +8,8 @@ type HudProps = {
   setQuery: Dispatch<SetStateAction<string>>;
   mode: GalaxyMode;
   setMode: Dispatch<SetStateAction<GalaxyMode>>;
+  visualQuality: VisualQuality;
+  setVisualQuality: Dispatch<SetStateAction<VisualQuality>>;
   filteredPoets: Poet[];
   filteredPoems: Poem[];
   activeDynasties: Dynasty[];
@@ -30,11 +32,25 @@ const modeHint: Record<GalaxyMode, string> = {
   tour: '镜头自动穿越高亮恒星'
 };
 
+const qualityLabel: Record<VisualQuality, string> = {
+  performance: '性能',
+  balanced: '均衡',
+  high: '电影'
+};
+
+const qualityHint: Record<VisualQuality, string> = {
+  performance: '关闭 Bloom/DOF，降低 DPR 和动态标签，适合低配设备。',
+  balanced: '保留 Bloom，关闭 DOF，兼顾流畅与视频质感。',
+  high: '启用 Bloom、读诗 DOF 和完整星空质感，适合桌面端。'
+};
+
 export default function Hud({
   query,
   setQuery,
   mode,
   setMode,
+  visualQuality,
+  setVisualQuality,
   filteredPoets,
   filteredPoems,
   activeDynasties,
@@ -68,6 +84,24 @@ export default function Hud({
         ))}
       </div>
 
+      <section className="control-section quality-section">
+        <div className="section-title">画质模式</div>
+        <div className="quality-switcher">
+          {(['performance', 'balanced', 'high'] as VisualQuality[]).map((quality) => (
+            <button
+              key={quality}
+              className={visualQuality === quality ? 'active' : ''}
+              onClick={() => setVisualQuality(quality)}
+              title={qualityHint[quality]}
+            >
+              <span>{qualityLabel[quality]}</span>
+              <small>{quality.toUpperCase()}</small>
+            </button>
+          ))}
+        </div>
+        <p className="quality-note">电影模式会启用选择性 Bloom 和读诗景深；系统开启“减少动态效果”时会自动降为性能模式。</p>
+      </section>
+
       <section className="control-section data-section">
         <div className="section-title">实时观测</div>
         <div className="data-grid">
@@ -97,7 +131,7 @@ export default function Hud({
       <section className="control-section">
         <div className="section-title">高亮主星</div>
         <div className="result-list poet-list">
-          {filteredPoets.slice(0, 8).map((poet) => (
+          {filteredPoets.slice(0, visualQuality === 'performance' ? 5 : 8).map((poet) => (
             <button key={poet.id} onClick={() => onSelectPoet(poet)}>
               <span>{poet.name}</span>
               <small>{poet.dynasty} · 亮度 {Math.round(poet.brightness * 100)} · {poet.works.length} 代表作</small>
@@ -109,7 +143,7 @@ export default function Hud({
       <section className="control-section poem-results">
         <div className="section-title">诗歌坐标</div>
         <div className="result-list">
-          {filteredPoems.slice(0, 7).map((poem) => (
+          {filteredPoems.slice(0, visualQuality === 'performance' ? 4 : 7).map((poem) => (
             <button key={poem.id} onClick={() => onSelectPoem(poem)}>
               <span>《{poem.title}》</span>
               <small>{poetById[poem.poetId].name} · {poem.form}</small>
