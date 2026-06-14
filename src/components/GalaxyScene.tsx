@@ -1,10 +1,11 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Html, OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { memo, useEffect, useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import * as THREE from 'three';
 import type { GalaxyMode, Selection } from '../App';
 import type { Dynasty, Poet } from '../data/poetry';
-import { dynastyColors, dynastyOrder, poetById, poets } from '../data/poetry';
+import { dynastyColors, dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
 import { buildRelationshipSegments, generateGalaxyBuffers, generateNebulaBuffers, poetWorldPosition } from '../lib/galaxy';
 
 type SceneProps = {
@@ -27,28 +28,39 @@ function mulberry32(seed: number) {
   };
 }
 
+const splitPoemLines = (text: string) =>
+  (text.match(/[^，。！？；]+[，。！？；]?/g) ?? [text]).map((line) => line.trim()).filter(Boolean);
+
 function CameraRig({ focusId, mode }: { focusId: string; mode: GalaxyMode }) {
   const { camera } = useThree();
   const target = useRef(new THREE.Vector3(8, 22, 0));
   const clock = useRef(0);
+  const lastFocus = useRef(focusId);
+  const flightBoost = useRef(0);
 
   useEffect(() => {
     const poet = poetById[focusId] ?? poets[0];
     target.current.copy(poetWorldPosition(poet));
+    if (lastFocus.current !== focusId) {
+      flightBoost.current = 1;
+      lastFocus.current = focusId;
+    }
   }, [focusId]);
 
   useFrame((_, delta) => {
     clock.current += delta;
+    flightBoost.current = Math.max(0, flightBoost.current - delta * 0.72);
     const focus = target.current;
     const orbit = mode === 'tour' ? clock.current * 0.22 : clock.current * 0.06;
-    const distance = mode === 'reading' ? 16 : mode === 'network' ? 52 : mode === 'tour' ? 72 : 34;
-    const height = mode === 'network' ? 24 : mode === 'tour' ? 30 + Math.sin(clock.current * 0.18) * 8 : 13;
+    const fly = flightBoost.current;
+    const distance = mode === 'reading' ? 14 + fly * 12 : mode === 'network' ? 58 : mode === 'tour' ? 72 : 32 + fly * 24;
+    const height = mode === 'network' ? 30 : mode === 'tour' ? 30 + Math.sin(clock.current * 0.18) * 8 : 13 + fly * 10;
     const desired = new THREE.Vector3(
-      focus.x + Math.cos(orbit) * distance,
+      focus.x + Math.cos(orbit + fly * 1.4) * distance,
       focus.y + height,
-      focus.z + Math.sin(orbit) * distance * 0.78
+      focus.z + Math.sin(orbit + fly * 1.4) * distance * 0.78
     );
-    camera.position.lerp(desired, mode === 'tour' ? 0.012 : 0.04);
+    camera.position.lerp(desired, mode === 'tour' ? 0.012 : fly > 0.05 ? 0.065 : 0.04);
     camera.lookAt(focus);
   });
 
@@ -91,15 +103,7 @@ const GalaxyDust = memo(function GalaxyDust({ activeDynasties }: { activeDynasti
 
   return (
     <points ref={points} geometry={geometry} frustumCulled={false}>
-      <pointsMaterial
-        vertexColors
-        size={0.078}
-        sizeAttenuation
-        transparent
-        opacity={0.92}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
+      <pointsMaterial vertexColors size={0.078} sizeAttenuation transparent opacity={0.92} depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
   );
 });
@@ -153,15 +157,7 @@ function NebulaClouds() {
 
   return (
     <points ref={group} geometry={geometry} frustumCulled={false}>
-      <pointsMaterial
-        vertexColors
-        size={1.85}
-        sizeAttenuation
-        transparent
-        opacity={0.105}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
+      <pointsMaterial vertexColors size={1.85} sizeAttenuation transparent opacity={0.105} depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
   );
 }
@@ -171,18 +167,18 @@ function PoemOrbitCloud({ poet, mode }: { poet: Poet; mode: GalaxyMode }) {
   const group = useRef<THREE.Group>(null);
   const data = useMemo(() => {
     const random = mulberry32(poet.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 911));
-    const count = mode === 'reading' ? 1800 : 980;
+    const count = mode === 'reading' ? 2300 : 1050;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const baseColor = new THREE.Color(color);
     for (let i = 0; i < count; i += 1) {
-      const radius = 3.5 + Math.pow(random(), 0.58) * (mode === 'reading' ? 14 : 9);
+      const radius = 3.5 + Math.pow(random(), 0.58) * (mode === 'reading' ? 16 : 9);
       const angle = random() * Math.PI * 2;
-      const band = Math.floor(random() * 4);
-      const tilt = (band - 1.5) * 0.38;
+      const band = Math.floor(random() * 5);
+      const tilt = (band - 2) * 0.34;
       positions[i * 3] = Math.cos(angle) * radius;
       positions[i * 3 + 1] = Math.sin(angle * 2.2) * 0.9 + Math.sin(angle) * radius * tilt * 0.12;
-      positions[i * 3 + 2] = Math.sin(angle) * radius * (0.64 + band * 0.08);
+      positions[i * 3 + 2] = Math.sin(angle) * radius * (0.64 + band * 0.07);
       const glow = 0.44 + random() * 0.72;
       colors[i * 3] = Math.min(1, baseColor.r * glow + 0.18);
       colors[i * 3 + 1] = Math.min(1, baseColor.g * glow + 0.14);
@@ -205,12 +201,66 @@ function PoemOrbitCloud({ poet, mode }: { poet: Poet; mode: GalaxyMode }) {
       <points geometry={data} frustumCulled={false}>
         <pointsMaterial vertexColors size={0.11} sizeAttenuation transparent opacity={mode === 'reading' ? 0.9 : 0.68} depthWrite={false} blending={THREE.AdditiveBlending} />
       </points>
-      {[4.2, 7.6, 11.2].map((radius, index) => (
+      {[4.2, 7.6, 11.2, 15.1].map((radius, index) => (
         <mesh key={radius} rotation={[Math.PI / 2 + index * 0.1, 0.2 * index, index * 0.45]}>
-          <torusGeometry args={[radius, 0.018, 6, 160]} />
-          <meshBasicMaterial color={color} transparent opacity={0.18 - index * 0.035} depthWrite={false} blending={THREE.AdditiveBlending} />
+          <torusGeometry args={[radius, 0.018, 6, 180]} />
+          <meshBasicMaterial color={color} transparent opacity={0.18 - index * 0.03} depthWrite={false} blending={THREE.AdditiveBlending} />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+function FocusBeacon({ poet, mode }: { poet: Poet; mode: GalaxyMode }) {
+  const group = useRef<THREE.Group>(null);
+  const color = dynastyColors[poet.dynasty];
+
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    group.current.rotation.y = clock.elapsedTime * 0.55;
+    group.current.rotation.z = Math.sin(clock.elapsedTime * 0.6) * 0.18;
+  });
+
+  return (
+    <group ref={group} position={poet.position}>
+      {[3.2, 5.2, 7.4].map((radius, index) => (
+        <mesh key={radius} rotation={[Math.PI / 2, index * 0.65, index * 0.22]}>
+          <torusGeometry args={[radius, 0.026, 10, 180]} />
+          <meshBasicMaterial color={index === 1 ? '#ffffff' : color} transparent opacity={mode === 'network' ? 0.22 : 0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+        </mesh>
+      ))}
+      <mesh scale={[0.06, mode === 'reading' ? 34 : 24, 0.06]}>
+        <cylinderGeometry args={[1, 1, 1, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
+function FloatingVerseConstellation({ selection, mode }: { selection: Selection; mode: GalaxyMode }) {
+  const poet = selection.poet;
+  const color = dynastyColors[poet.dynasty];
+  const fragments = useMemo(() => {
+    if (selection.kind === 'poem') return splitPoemLines(selection.poem.fullText).slice(0, 7);
+    const localPoems = poemsByPoet[poet.id] ?? [];
+    return localPoems.flatMap((poem) => splitPoemLines(poem.excerpt)).slice(0, 7);
+  }, [poet.id, selection]);
+
+  if (mode !== 'reading') return null;
+
+  return (
+    <group position={poet.position}>
+      {fragments.map((line, index) => {
+        const angle = (index / Math.max(1, fragments.length)) * Math.PI * 2 + index * 0.24;
+        const radius = 8.5 + (index % 3) * 3.1;
+        return (
+          <Billboard key={`${line}-${index}`} position={[Math.cos(angle) * radius, 3.2 + Math.sin(index * 1.7) * 2.6, Math.sin(angle) * radius * 0.72]}>
+            <Html center distanceFactor={9} className="floating-verse-wrap">
+              <div className="floating-verse" style={{ '--accent': color, '--delay': `${index * 120}ms` } as CSSProperties}>{line}</div>
+            </Html>
+          </Billboard>
+        );
+      })}
     </group>
   );
 }
@@ -293,8 +343,27 @@ function RelationshipNetwork({ activePoetId, mode }: { activePoetId?: string; mo
 
   return (
     <lineSegments geometry={geometry} frustumCulled={false}>
-      <lineBasicMaterial vertexColors transparent opacity={mode === 'network' ? 0.72 : 0.34} blending={THREE.AdditiveBlending} depthWrite={false} />
+      <lineBasicMaterial vertexColors transparent opacity={mode === 'network' ? 0.78 : 0.34} blending={THREE.AdditiveBlending} depthWrite={false} />
     </lineSegments>
+  );
+}
+
+function NetworkAnchorLabels({ mode, onSelectPoet }: { mode: GalaxyMode; onSelectPoet: (poet: Poet) => void }) {
+  if (mode !== 'network') return null;
+
+  return (
+    <group>
+      {poets.map((poet) => (
+        <Billboard key={poet.id} position={[poet.position[0], poet.position[1] + 4.2, poet.position[2]]}>
+          <Html center distanceFactor={14} className="network-label-wrap">
+            <button className="network-label-3d" style={{ '--accent': dynastyColors[poet.dynasty] } as CSSProperties} onClick={() => onSelectPoet(poet)}>
+              <strong>{poet.name}</strong>
+              <span>{poet.relations.length} 条航线</span>
+            </button>
+          </Html>
+        </Billboard>
+      ))}
+    </group>
   );
 }
 
@@ -350,15 +419,12 @@ function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection
       <DynastyRings />
       <DynastySpaceLabels />
       <PoemOrbitCloud poet={selectedPoet} mode={mode} />
+      <FocusBeacon poet={selectedPoet} mode={mode} />
+      <FloatingVerseConstellation selection={selection} mode={mode} />
       <RelationshipNetwork activePoetId={selectedPoetId} mode={mode} />
+      <NetworkAnchorLabels mode={mode} onSelectPoet={onSelectPoet} />
       {poets.map((poet) => (
-        <PoetStar
-          key={poet.id}
-          poet={poet}
-          selected={poet.id === selectedPoetId}
-          dimmed={!visiblePoetIds.has(poet.id)}
-          onSelect={onSelectPoet}
-        />
+        <PoetStar key={poet.id} poet={poet} selected={poet.id === selectedPoetId} dimmed={!visiblePoetIds.has(poet.id)} onSelect={onSelectPoet} />
       ))}
       <OrbitControls enableDamping dampingFactor={0.06} rotateSpeed={0.34} zoomSpeed={0.68} minDistance={7} maxDistance={190} />
     </>
