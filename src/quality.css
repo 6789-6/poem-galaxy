@@ -68,7 +68,7 @@
   opacity: 0.86;
 }
 
-.quality-high .center-reticle i {
+.quality-cinematic .center-reticle i {
   box-shadow:
     0 0 28px rgba(133, 239, 255, 0.16),
     0 0 80px rgba(255, 226, 150, 0.08);
