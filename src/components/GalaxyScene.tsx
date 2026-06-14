@@ -7,6 +7,7 @@ import type { GalaxyMode, Selection } from '../App';
 import type { Dynasty, Poet } from '../data/poetry';
 import { dynastyColors, dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
 import { buildRelationshipSegments, generateGalaxyBuffers, generateNebulaBuffers, poetWorldPosition } from '../lib/galaxy';
+import GpuStarfield from './GpuStarfield';
 
 type SceneProps = {
   mode: GalaxyMode;
@@ -401,7 +402,7 @@ function DynastySpaceLabels() {
 }
 
 function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection, onSelectPoet }: SceneProps) {
-  const selectedPoetId = selection.kind === 'poet' ? selection.poet.id : selection.poet.id;
+  const selectedPoetId = selection.poet.id;
   const selectedPoet = selection.poet;
   const visiblePoetIds = useMemo(() => new Set(filteredPoets.map((poet) => poet.id)), [filteredPoets]);
 
@@ -415,7 +416,7 @@ function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection
       <DeepField />
       <PoetryCore />
       <NebulaClouds />
-      <GalaxyDust activeDynasties={activeDynasties} />
+      <GpuStarfield activeDynasties={activeDynasties} />
       <DynastyRings />
       <DynastySpaceLabels />
       <PoemOrbitCloud poet={selectedPoet} mode={mode} />
