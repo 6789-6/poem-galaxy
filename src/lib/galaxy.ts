@@ -42,7 +42,11 @@ function colorToRgb(hex: string) {
   return [color.r, color.g, color.b] as const;
 }
 
-export function generateGalaxyBuffers(count = 80000): GalaxyBuffers {
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+export function generateGalaxyBuffers(count = 150000): GalaxyBuffers {
   const random = mulberry32(20260614);
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -54,26 +58,34 @@ export function generateGalaxyBuffers(count = 80000): GalaxyBuffers {
     const dynasty = dynastyOrder[dynastySlot];
     dynastyIndex[i] = dynastySlot;
 
-    const bandCenter = -44 + dynastySlot * 18;
-    const radius = 18 + dynastySlot * 9 + random() * 24;
-    const angle = random() * Math.PI * 2 + dynastySlot * 0.65;
-    const spiral = radius * 0.018;
-    const arm = angle + spiral + gaussian(random) * 0.28;
+    const poet = poets[Math.floor(random() * poets.length)];
+    const dynastyCenter = -52 + dynastySlot * 22;
+    const arm = Math.floor(random() * 5);
+    const radius = 7 + Math.pow(random(), 0.58) * (36 + dynastySlot * 3);
+    const angle = random() * Math.PI * 2 + radius * 0.075 + arm * ((Math.PI * 2) / 5) + dynastySlot * 0.3;
+    const armTightness = 0.9 + dynastySlot * 0.025;
+    const diskNoise = gaussian(random) * (1.9 + radius * 0.035);
+    const verticalNoise = gaussian(random) * (1.3 + radius * 0.055);
 
-    const verticalNoise = gaussian(random) * (4.5 + random() * 4);
-    const localCluster = poets[Math.floor(random() * poets.length)];
-    const towardPoet = random() < 0.32;
+    let x = dynastyCenter + Math.cos(angle) * radius * armTightness + diskNoise;
+    let y = Math.sin(angle * 2.8 + dynastySlot) * 2.4 + verticalNoise;
+    let z = Math.sin(angle) * radius * 0.84 + gaussian(random) * (2.8 + radius * 0.045);
 
-    let x = Math.cos(arm) * radius + bandCenter + gaussian(random) * 3.5;
-    let y = verticalNoise + Math.sin(angle * 3.0) * 3.5;
-    let z = Math.sin(arm) * radius + gaussian(random) * 7.2;
+    const isPoetHalo = random() < 0.48;
+    if (isPoetHalo) {
+      const t = 0.38 + random() * 0.52;
+      const cluster = 2.2 + (1.8 - poet.brightness) * 3.5 + random() * 3.5;
+      x = lerp(x, poet.position[0], t) + gaussian(random) * cluster;
+      y = lerp(y, poet.position[1], t) + gaussian(random) * cluster * 0.72;
+      z = lerp(z, poet.position[2], t) + gaussian(random) * cluster;
+    }
 
-    if (towardPoet) {
-      const p = localCluster.position;
-      const t = 0.35 + random() * 0.48;
-      x = lerp(x, p[0], t) + gaussian(random) * 5.5;
-      y = lerp(y, p[1], t) + gaussian(random) * 5.5;
-      z = lerp(z, p[2], t) + gaussian(random) * 5.5;
+    const isCoreDust = random() < 0.18;
+    if (isCoreDust) {
+      const coreT = random() * 0.45;
+      x = lerp(x, dynastyCenter, coreT) + gaussian(random) * 4.6;
+      y = lerp(y, 0, coreT) + gaussian(random) * 2.4;
+      z = lerp(z, 0, coreT) + gaussian(random) * 4.6;
     }
 
     positions[i * 3] = x;
@@ -81,18 +93,19 @@ export function generateGalaxyBuffers(count = 80000): GalaxyBuffers {
     positions[i * 3 + 2] = z;
 
     const [r, g, b] = colorToRgb(dynastyColors[dynasty]);
-    const glow = 0.55 + random() * 0.45;
-    colors[i * 3] = Math.min(1, r * glow + random() * 0.05);
-    colors[i * 3 + 1] = Math.min(1, g * glow + random() * 0.05);
-    colors[i * 3 + 2] = Math.min(1, b * glow + random() * 0.09);
+    const hotCore = isPoetHalo ? 0.12 + random() * 0.18 : 0.03 + random() * 0.08;
+    const brightness = 0.42 + Math.pow(random(), 0.35) * 0.72;
+    colors[i * 3] = clamp01(r * brightness + hotCore + random() * 0.03);
+    colors[i * 3 + 1] = clamp01(g * brightness + hotCore * 0.82 + random() * 0.035);
+    colors[i * 3 + 2] = clamp01(b * brightness + hotCore * 1.2 + random() * 0.05);
 
-    sizes[i] = 0.045 + Math.pow(random(), 5) * 0.75;
+    sizes[i] = 0.045 + Math.pow(random(), 6.5) * 1.35 + (isPoetHalo ? 0.035 : 0);
   }
 
   return { positions, colors, sizes, dynastyIndex, total: count };
 }
 
-export function generateNebulaBuffers(count = 14000): GalaxyBuffers {
+export function generateNebulaBuffers(count = 36000): GalaxyBuffers {
   const random = mulberry32(9477);
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -104,21 +117,23 @@ export function generateNebulaBuffers(count = 14000): GalaxyBuffers {
     const dynasty = dynastyOrder[dynastySlot];
     dynastyIndex[i] = dynastySlot;
 
-    const radius = 24 + random() * 52;
-    const angle = random() * Math.PI * 2;
-    const x = -48 + dynastySlot * 18 + Math.cos(angle) * radius * (0.5 + random());
-    const y = gaussian(random) * 14;
-    const z = Math.sin(angle) * radius * 0.75 + gaussian(random) * 22;
+    const radius = 16 + random() * 60;
+    const angle = random() * Math.PI * 2 + dynastySlot * 0.42;
+    const wave = Math.sin(angle * 3.2 + dynastySlot) * 7;
+    const x = -52 + dynastySlot * 22 + Math.cos(angle) * radius * (0.62 + random() * 0.55) + gaussian(random) * 8;
+    const y = wave + gaussian(random) * 11;
+    const z = Math.sin(angle) * radius * 0.82 + gaussian(random) * 18;
 
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
 
     const [r, g, b] = colorToRgb(dynastyColors[dynasty]);
-    colors[i * 3] = r * 0.42;
-    colors[i * 3 + 1] = g * 0.42;
-    colors[i * 3 + 2] = b * 0.42;
-    sizes[i] = 0.25 + random() * 2.2;
+    const haze = 0.18 + random() * 0.22;
+    colors[i * 3] = r * haze;
+    colors[i * 3 + 1] = g * haze;
+    colors[i * 3 + 2] = b * (haze + 0.06);
+    sizes[i] = 0.35 + random() * 2.8;
   }
 
   return { positions, colors, sizes, dynastyIndex, total: count };
@@ -128,19 +143,51 @@ export function poetWorldPosition(poet: Poet) {
   return new Vector3(poet.position[0], poet.position[1], poet.position[2]);
 }
 
+function pushArc(source: Poet, target: Poet, segments: number[], colors: number[], highlight = false) {
+  const start = new Vector3(...source.position);
+  const end = new Vector3(...target.position);
+  const mid = start.clone().lerp(end, 0.5);
+  const distance = start.distanceTo(end);
+  mid.y += 7 + distance * 0.18;
+  mid.z += Math.sin(distance) * 3;
+
+  const sourceColor = new Color(dynastyColors[source.dynasty]);
+  const targetColor = new Color(dynastyColors[target.dynasty]);
+  const steps = highlight ? 20 : 14;
+
+  let previous = start;
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const a = start.clone().lerp(mid, t);
+    const b = mid.clone().lerp(end, t);
+    const point = a.lerp(b, t);
+    segments.push(previous.x, previous.y, previous.z, point.x, point.y, point.z);
+    const c1 = sourceColor.clone().lerp(targetColor, Math.max(0, t - 0.08));
+    const c2 = sourceColor.clone().lerp(targetColor, t);
+    const boost = highlight ? 1.45 : 0.82;
+    colors.push(
+      clamp01(c1.r * boost), clamp01(c1.g * boost), clamp01(c1.b * boost),
+      clamp01(c2.r * boost), clamp01(c2.g * boost), clamp01(c2.b * boost)
+    );
+    previous = point;
+  }
+}
+
 export function buildRelationshipSegments(activePoetId?: string) {
   const segments: number[] = [];
   const colors: number[] = [];
+  const seen = new Set<string>();
 
   poets.forEach((poet) => {
-    if (activePoetId && poet.id !== activePoetId && !poet.relations.includes(activePoetId)) return;
     poet.relations.forEach((targetId) => {
       const target = poets.find((item) => item.id === targetId);
       if (!target) return;
-      segments.push(...poet.position, ...target.position);
-      const sourceColor = new Color(dynastyColors[poet.dynasty]);
-      const targetColor = new Color(dynastyColors[target.dynasty]);
-      colors.push(sourceColor.r, sourceColor.g, sourceColor.b, targetColor.r, targetColor.g, targetColor.b);
+      const key = [poet.id, target.id].sort().join('::');
+      if (seen.has(key)) return;
+      seen.add(key);
+      const highlight = !activePoetId || poet.id === activePoetId || target.id === activePoetId;
+      if (activePoetId && !highlight) return;
+      pushArc(poet, target, segments, colors, highlight);
     });
   });
 
