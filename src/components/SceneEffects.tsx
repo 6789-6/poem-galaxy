@@ -12,16 +12,16 @@ export default function SceneEffects({ mode, visualQuality }: { mode: GalaxyMode
     <EffectComposer multisampling={0} enableNormalPass={false}>
       <Bloom
         mipmapBlur
-        luminanceThreshold={1.08}
-        luminanceSmoothing={0.18}
-        intensity={isReading ? 0.92 : isNetwork ? 0.82 : 0.62}
-        radius={isHigh ? 0.72 : 0.54}
+        luminanceThreshold={1.24}
+        luminanceSmoothing={0.28}
+        intensity={isReading ? 0.62 : isNetwork ? 0.58 : 0.42}
+        radius={isHigh ? 0.56 : 0.42}
       />
       {isHigh && isReading && (
         <DepthOfField
           focusDistance={0.018}
           focalLength={0.032}
-          bokehScale={1.45}
+          bokehScale={1.15}
           height={480}
         />
       )}
