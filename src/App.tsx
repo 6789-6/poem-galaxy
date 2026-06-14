@@ -3,7 +3,7 @@ import GalaxyScene from './components/GalaxyScene';
 import Hud from './components/Hud';
 import PoetryPanel from './components/PoetryPanel';
 import type { Dynasty, Poem, Poet } from './data/poetry';
-import { dynastyOrder, poems, poetById, poets } from './data/poetry';
+import { dynastyColors, dynastyOrder, poems, poetById, poets } from './data/poetry';
 
 export type Selection =
   | { kind: 'poet'; poet: Poet }
@@ -65,7 +65,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell mode-${mode}`}>
       <GalaxyScene
         mode={mode}
         focusId={focusId}
@@ -75,10 +75,16 @@ function App() {
         selection={selection}
       />
 
+      <div className="sky-noise" />
       <div className="vignette" />
+      <div className="center-reticle">
+        <i />
+        <span>POEM COORDINATE LOCK</span>
+      </div>
+
       <div className="top-title">
         <div>
-          <span className="eyebrow">POEM CLOUD OBSERVATORY</span>
+          <span className="eyebrow">POEM CLOUD · FULL HISTORY OBSERVATORY</span>
           <h1>诗云</h1>
         </div>
         <div className="metrics-strip">
@@ -108,12 +114,26 @@ function App() {
         onSelectPoem={handleSelectPoem}
       />
 
+      <div className="era-ruler">
+        {dynastyOrder.map((dynasty) => (
+          <button
+            key={dynasty}
+            className={activeDynasties.includes(dynasty) ? 'active' : ''}
+            onClick={() => toggleDynasty(dynasty)}
+            style={{ '--era': dynastyColors[dynasty] } as React.CSSProperties}
+          >
+            <i />
+            <span>{dynasty}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="bottom-console">
         <div className="scanline" />
-        <span>拖拽旋转星云</span>
-        <span>滚轮缩放</span>
-        <span>点击高亮恒星进入诗人星域</span>
-        <span>关系网络显示诗人影响航线</span>
+        <span>DRAG 旋转星云</span>
+        <span>WHEEL 缩放</span>
+        <span>CLICK 锁定诗人恒星</span>
+        <span>NETWORK 关系航线</span>
       </div>
     </div>
   );
