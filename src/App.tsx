@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import GalaxyScene from './components/GalaxyScene';
 import Hud from './components/Hud';
 import PoetryPanel from './components/PoetryPanel';
+import type { VisualQuality } from './config/renderPresets';
+import { RENDER_PRESETS } from './config/renderPresets';
 import type { Dynasty, Poem, Poet } from './data/poetry';
 import { dynastyColors, dynastyOrder, poems, poemsByPoet, poetById, poets } from './data/poetry';
 
@@ -11,7 +13,7 @@ export type Selection =
   | { kind: 'poem'; poem: Poem; poet: Poet };
 
 export type GalaxyMode = 'explore' | 'network' | 'reading' | 'tour';
-export type VisualQuality = 'performance' | 'balanced' | 'high';
+export type { VisualQuality };
 
 const splitPoemLines = (text: string) =>
   (text.match(/[^，。！？；]+[，。！？；]?/g) ?? [text]).map((line) => line.trim()).filter(Boolean);
@@ -25,7 +27,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [activeDynasties, setActiveDynasties] = useState<Dynasty[]>(dynastyOrder);
   const [focusId, setFocusId] = useState('li-bai');
-  const [visualQuality, setVisualQuality] = useState<VisualQuality>(() => (prefersReducedMotion() ? 'performance' : 'high'));
+  const [visualQuality, setVisualQuality] = useState<VisualQuality>(() => (prefersReducedMotion() ? 'performance' : 'cinematic'));
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -89,7 +91,7 @@ function App() {
         setSelection({ kind: 'poet', poet: filteredPoets[0] });
         setFocusId(filteredPoets[0].id);
       }
-    }, visualQuality === 'performance' ? 420 : 320);
+    }, RENDER_PRESETS[visualQuality].searchDebounceMs);
 
     return () => window.clearTimeout(timer);
   }, [query, filteredPoems, filteredPoets, visualQuality]);
