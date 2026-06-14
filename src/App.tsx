@@ -28,6 +28,7 @@ function App() {
   const [activeDynasties, setActiveDynasties] = useState<Dynasty[]>(dynastyOrder);
   const [focusId, setFocusId] = useState('li-bai');
   const [visualQuality, setVisualQuality] = useState<VisualQuality>(() => (prefersReducedMotion() ? 'performance' : 'cinematic'));
+  const [uiHidden, setUiHidden] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -37,6 +38,21 @@ function App() {
     };
     media.addEventListener?.('change', handleChange);
     return () => media.removeEventListener?.('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'h') {
+        setUiHidden((value) => !value);
+      }
+      if (event.key === 'Escape') {
+        setQuery('');
+        setMode('explore');
+        setUiHidden(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const filteredPoets = useMemo(() => {
@@ -138,7 +154,7 @@ function App() {
   const accent = dynastyColors[selection.poet.dynasty];
 
   return (
-    <div className={`app-shell mode-${mode} quality-${visualQuality} ${searchActive ? 'searching' : ''}`}>
+    <div className={`app-shell mode-${mode} quality-${visualQuality} ${searchActive ? 'searching' : ''} ${uiHidden ? 'ui-hidden' : ''}`}>
       <GalaxyScene
         mode={mode}
         focusId={focusId}
@@ -151,6 +167,9 @@ function App() {
 
       <div className="sky-noise" />
       <div className="vignette" />
+      <button className="hud-toggle" onClick={() => setUiHidden((value) => !value)} title="按 H 隐藏/显示界面">
+        H
+      </button>
       <div className="search-warp" style={{ '--accent': accent } as CSSProperties}>
         <i />
         <span>{searchActive ? `正在解析「${query.trim()}」的诗歌坐标` : '等待诗歌坐标输入'}</span>
@@ -197,9 +216,9 @@ function App() {
           <h1>诗云</h1>
         </div>
         <div className="metrics-strip">
-          <span><b>32,657</b> 位诗人</span>
-          <span><b>933,857</b> 首诗</span>
-          <span><b>3,000</b> 年时间轴</span>
+          <span><b>32,657</b> 诗人</span>
+          <span><b>933,857</b> 诗作</span>
+          <span><b>H</b> 隐藏界面</span>
         </div>
       </div>
 
@@ -244,7 +263,7 @@ function App() {
         <span>SEARCH 自动飞入</span>
         <span>CLICK 锁定诗人恒星</span>
         <span>READING 诗句悬浮</span>
-        <span>QUALITY {visualQuality.toUpperCase()}</span>
+        <span>H 隐藏界面</span>
       </div>
     </div>
   );
