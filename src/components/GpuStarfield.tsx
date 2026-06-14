@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import type { VisualQuality } from '../App';
 import type { Dynasty } from '../data/poetry';
 import { dynastyOrder } from '../data/poetry';
 import { generateGalaxyBuffers } from '../lib/galaxy';
@@ -15,6 +16,7 @@ const vertexShader = `
   uniform float uTime;
   uniform float uPixelRatio;
   uniform float uActiveDynasties[6];
+  uniform float uQualityScale;
 
   varying vec3 vColor;
   varying float vAlpha;
@@ -35,10 +37,10 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
 
     vColor = color * mix(vec3(0.2, 0.24, 0.34), vec3(1.0), active);
-    vAlpha = mix(0.09, 0.96, active);
+    vAlpha = mix(0.08, 0.96, active) * uQualityScale;
     vTwinkle = twinkle;
 
-    gl_PointSize = clamp(size * pulse * (260.0 / max(8.0, -mvPosition.z)) * uPixelRatio * 72.0, 1.0, 24.0);
+    gl_PointSize = clamp(size * pulse * (260.0 / max(8.0, -mvPosition.z)) * uPixelRatio * 72.0 * uQualityScale, 1.0, 24.0);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -72,9 +74,23 @@ function createDynastyMask(activeDynasties: Dynasty[]) {
   return mask;
 }
 
-const GpuStarfield = memo(function GpuStarfield({ activeDynasties }: { activeDynasties: Dynasty[] }) {
+function qualityToCount(visualQuality: VisualQuality) {
+  if (visualQuality === 'performance') return 85000;
+  if (visualQuality === 'balanced') return 120000;
+  return 150000;
+}
+
+function qualityToScale(visualQuality: VisualQuality) {
+  if (visualQuality === 'performance') return 0.72;
+  if (visualQuality === 'balanced') return 0.9;
+  return 1;
+}
+
+const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality }: { activeDynasties: Dynasty[]; visualQuality: VisualQuality }) {
   const points = useRef<THREE.Points>(null);
-  const galaxy = useMemo(() => generateGalaxyBuffers(150000), []);
+  const count = qualityToCount(visualQuality);
+  const qualityScale = qualityToScale(visualQuality);
+  const galaxy = useMemo(() => generateGalaxyBuffers(count), [count]);
 
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
@@ -100,8 +116,9 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties }: { activeDyn
       new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
-          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 1.75) },
-          uActiveDynasties: { value: createDynastyMask(activeDynasties) }
+          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.75) },
+          uActiveDynasties: { value: createDynastyMask(activeDynasties) },
+          uQualityScale: { value: qualityScale }
         },
         vertexShader,
         fragmentShader,
@@ -117,11 +134,17 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties }: { activeDyn
     material.uniforms.uActiveDynasties.value = createDynastyMask(activeDynasties);
   }, [activeDynasties, material]);
 
+  useEffect(() => {
+    material.uniforms.uQualityScale.value = qualityScale;
+    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, visualQuality === 'performance' ? 1 : 1.75);
+  }, [material, qualityScale, visualQuality]);
+
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.elapsedTime;
     if (!points.current) return;
-    points.current.rotation.y = Math.sin(clock.elapsedTime * 0.018) * 0.035;
-    points.current.rotation.z = Math.sin(clock.elapsedTime * 0.011) * 0.01;
+    const motion = visualQuality === 'performance' ? 0.35 : 1;
+    points.current.rotation.y = Math.sin(clock.elapsedTime * 0.018 * motion) * 0.035;
+    points.current.rotation.z = Math.sin(clock.elapsedTime * 0.011 * motion) * 0.01;
   });
 
   return <points ref={points} geometry={geometry} material={material} frustumCulled={false} />;
