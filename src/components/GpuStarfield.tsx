@@ -38,15 +38,15 @@ const vertexShader = `
   void main() {
     float active = dynastyVisibility(dynasty);
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float pulse = 1.0 + uTwinkleAmp * sin(uTime * 1.45 + twinkle * 6.2831853);
+    float pulse = 1.0 + uTwinkleAmp * sin(uTime * 0.7 + twinkle * 6.2831853);
 
     vColor = color * mix(vec3(uDynastyFade), vec3(1.0), active);
-    vAlpha = mix(0.08, 0.96, active);
+    vAlpha = mix(0.06, 0.9, active);
     vTwinkle = twinkle;
 
     gl_PointSize = clamp(
-      size * pulse * (uPointScale / max(8.0, -mvPosition.z)) * uPixelRatio,
-      1.0,
+      size * pulse * (uPointScale / max(10.0, -mvPosition.z)) * uPixelRatio,
+      0.8,
       uMaxPointSize
     );
     gl_Position = projectionMatrix * mvPosition;
@@ -63,14 +63,14 @@ const fragmentShader = `
     float r2 = dot(uv, uv);
     if (r2 > 1.0) discard;
 
-    float body = exp(-r2 * 9.5);
-    float core = exp(-r2 * 42.0);
-    float halo = smoothstep(1.0, 0.18, r2) * 0.12;
-    float alpha = (body * 0.76 + core * 0.30 + halo) * vAlpha;
+    float body = exp(-r2 * 10.5);
+    float core = exp(-r2 * 52.0);
+    float halo = smoothstep(1.0, 0.18, r2) * 0.05;
+    float alpha = (body * 0.72 + core * 0.22 + halo) * vAlpha;
 
-    if (alpha < 0.014) discard;
+    if (alpha < 0.012) discard;
 
-    vec3 bloomTint = vColor * (1.0 + core * 1.05 + vTwinkle * 0.10);
+    vec3 bloomTint = vColor * (0.94 + core * 0.72 + vTwinkle * 0.04);
     gl_FragColor = vec4(bloomTint, alpha);
   }
 `;
@@ -116,7 +116,7 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality
           uPointScale: { value: preset.starPointScale },
           uMaxPointSize: { value: preset.starPointMax },
           uTwinkleAmp: { value: preset.twinkleAmplitude },
-          uDynastyFade: { value: 0.14 }
+          uDynastyFade: { value: 0.1 }
         },
         vertexShader,
         fragmentShader,
@@ -143,9 +143,8 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.elapsedTime;
     if (!points.current) return;
-    const motion = visualQuality === 'performance' ? 0.35 : 1;
-    points.current.rotation.y = Math.sin(clock.elapsedTime * 0.018 * motion) * 0.035;
-    points.current.rotation.z = Math.sin(clock.elapsedTime * 0.011 * motion) * 0.01;
+    points.current.rotation.y = 0;
+    points.current.rotation.z = 0;
   });
 
   return <points ref={points} geometry={geometry} material={material} frustumCulled={false} />;
