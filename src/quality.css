@@ -1,0 +1,97 @@
+.quality-section {
+  border-color: rgba(255, 230, 170, 0.13);
+}
+
+.quality-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quality-switcher button {
+  display: grid;
+  gap: 3px;
+  padding: 9px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(139, 232, 255, 0.14);
+  color: rgba(235, 249, 255, 0.72);
+  background: rgba(5, 13, 28, 0.38);
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.quality-switcher button:hover {
+  color: #fff;
+  border-color: rgba(255, 226, 156, 0.34);
+  transform: translateY(-1px);
+}
+
+.quality-switcher button.active {
+  color: #061018;
+  border-color: transparent;
+  background: linear-gradient(135deg, #9df4ff, #ffe6a3);
+  box-shadow: 0 0 22px rgba(125, 233, 255, 0.18);
+}
+
+.quality-switcher span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quality-switcher small {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  opacity: 0.72;
+}
+
+.quality-note {
+  margin: 10px 0 0;
+  color: rgba(220, 239, 255, 0.5);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.quality-performance .sky-noise {
+  opacity: 0.14;
+}
+
+.quality-performance .search-warp,
+.quality-performance .poetry-verse-cloud {
+  display: none;
+}
+
+.quality-performance .center-reticle {
+  opacity: 0.32;
+  animation: none !important;
+}
+
+.quality-balanced .vignette {
+  opacity: 0.86;
+}
+
+.quality-high .center-reticle i {
+  box-shadow:
+    0 0 28px rgba(133, 239, 255, 0.16),
+    0 0 80px rgba(255, 226, 150, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .search-warp,
+  .poetry-verse-cloud {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .quality-switcher {
+    grid-template-columns: 1fr;
+  }
+}
