@@ -1,31 +1,32 @@
 import { Bloom, DepthOfField, EffectComposer, Vignette } from '@react-three/postprocessing';
-import type { GalaxyMode, VisualQuality } from '../App';
+import type { GalaxyMode } from '../App';
+import { RENDER_PRESETS, type VisualQuality } from '../config/renderPresets';
 
 export default function SceneEffects({ mode, visualQuality }: { mode: GalaxyMode; visualQuality: VisualQuality }) {
-  if (visualQuality === 'performance') return null;
+  const preset = RENDER_PRESETS[visualQuality];
+  const bloom = preset.bloom;
+  const dof = mode === 'reading' ? preset.dof : null;
 
-  const isHigh = visualQuality === 'high';
-  const isReading = mode === 'reading';
-  const isNetwork = mode === 'network';
+  if (!bloom) return null;
 
   return (
-    <EffectComposer multisampling={0} enableNormalPass={false}>
+    <EffectComposer multisampling={preset.multisampling} enableNormalPass={false}>
       <Bloom
         mipmapBlur
-        luminanceThreshold={1.24}
-        luminanceSmoothing={0.28}
-        intensity={isReading ? 0.62 : isNetwork ? 0.58 : 0.42}
-        radius={isHigh ? 0.56 : 0.42}
+        luminanceThreshold={bloom.threshold}
+        luminanceSmoothing={bloom.smoothing}
+        intensity={mode === 'reading' ? bloom.intensityReading : bloom.intensity}
+        radius={bloom.radius}
       />
-      {isHigh && isReading && (
+      {dof && (
         <DepthOfField
-          focusDistance={0.018}
-          focalLength={0.032}
-          bokehScale={1.15}
-          height={480}
+          focusDistance={dof.focusDistance}
+          focalLength={dof.focalLength}
+          bokehScale={dof.bokehScale}
+          height={dof.height}
         />
       )}
-      {isHigh && <Vignette eskil={false} offset={0.22} darkness={0.72} />}
+      {preset.vignette && <Vignette eskil={false} offset={0.18} darkness={0.66} />}
     </EffectComposer>
   );
 }
