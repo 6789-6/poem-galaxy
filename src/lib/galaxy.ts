@@ -1,5 +1,5 @@
 import { Color, Vector3 } from 'three';
-import type { Dynasty, Poet } from '../data/poetry';
+import type { Poet } from '../data/poetry';
 import { dynastyColors, dynastyOrder, poets } from '../data/poetry';
 
 export type GalaxyBuffers = {
@@ -173,14 +173,21 @@ function pushArc(source: Poet, target: Poet, segments: number[], colors: number[
   }
 }
 
+const poetMap = new Map(poets.map((poet) => [poet.id, poet]));
+const relationshipSegmentCache = new Map<string, { positions: Float32Array; colors: Float32Array }>();
+
 export function buildRelationshipSegments(activePoetId?: string) {
+  const cacheKey = activePoetId ?? '__all__';
+  const cached = relationshipSegmentCache.get(cacheKey);
+  if (cached) return cached;
+
   const segments: number[] = [];
   const colors: number[] = [];
   const seen = new Set<string>();
 
   poets.forEach((poet) => {
     poet.relations.forEach((targetId) => {
-      const target = poets.find((item) => item.id === targetId);
+      const target = poetMap.get(targetId);
       if (!target) return;
       const key = [poet.id, target.id].sort().join('::');
       if (seen.has(key)) return;
@@ -191,8 +198,10 @@ export function buildRelationshipSegments(activePoetId?: string) {
     });
   });
 
-  return {
+  const result = {
     positions: new Float32Array(segments),
     colors: new Float32Array(colors)
   };
+  relationshipSegmentCache.set(cacheKey, result);
+  return result;
 }
