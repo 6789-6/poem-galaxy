@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import './data/installExpandedPoetry';
 import { poets, poems, type Poet, type Poem } from './data/expandedPoetry';
 import { PoetryGlobeScene } from './PoetryGlobeScene';
 
