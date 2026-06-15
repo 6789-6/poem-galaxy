@@ -26,89 +26,87 @@ html, body, #root {
 
 .reference-title {
   position: absolute;
-  top: 20px;
-  left: 28px;
+  top: 18px;
+  left: 24px;
   z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  opacity: 0.86;
-  text-shadow: 0 0 18px rgba(170, 245, 255, 0.72);
+  opacity: 0.68;
+  text-shadow: 0 0 14px rgba(170, 245, 255, 0.48);
   pointer-events: none;
 }
 
 .reference-title span {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.28em;
-  color: rgba(193, 244, 255, 0.62);
+  color: rgba(193, 244, 255, 0.55);
   font-weight: 800;
 }
 
 .reference-title strong {
-  font-size: clamp(30px, 4.2vw, 62px);
+  font-size: clamp(25px, 3.4vw, 46px);
   letter-spacing: 0.04em;
   line-height: 1;
-  color: #f2ffff;
+  color: rgba(242, 255, 255, 0.92);
 }
 
 .reference-metrics {
   position: absolute;
-  top: 26px;
-  right: 32px;
+  top: 22px;
+  right: 26px;
   z-index: 4;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 13px;
-  border: 1px solid rgba(185, 244, 255, 0.12);
+  gap: 8px;
+  padding: 7px 11px;
+  border: 1px solid rgba(185, 244, 255, 0.1);
   border-radius: 999px;
-  background: rgba(4, 9, 18, 0.34);
-  box-shadow: 0 0 24px rgba(90, 255, 236, 0.08);
-  backdrop-filter: blur(12px);
-  color: rgba(224, 249, 255, 0.82);
-  font-size: 12px;
+  background: rgba(4, 9, 18, 0.42);
+  color: rgba(224, 249, 255, 0.68);
+  font-size: 11px;
+  pointer-events: none;
 }
 
 .reference-metrics b {
-  color: #fff8cc;
-  font-size: 15px;
+  color: rgba(255, 248, 204, 0.88);
+  font-size: 13px;
 }
 
 .reference-metrics em {
-  margin-left: 8px;
+  margin-left: 6px;
   font-style: normal;
-  color: rgba(219, 241, 255, 0.56);
+  color: rgba(219, 241, 255, 0.48);
 }
 
 .reference-verse {
   position: absolute;
-  left: 34px;
-  bottom: 72px;
+  left: 26px;
+  bottom: 62px;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 14px 18px;
-  color: rgba(247, 255, 255, 0.86);
+  gap: 4px;
+  padding: 10px 14px;
+  color: rgba(247, 255, 255, 0.68);
   font-family: KaiTi, STKaiti, serif;
-  font-size: clamp(16px, 1.7vw, 28px);
-  line-height: 1.4;
-  text-shadow: 0 0 18px rgba(210, 255, 255, 0.5);
+  font-size: clamp(15px, 1.45vw, 22px);
+  line-height: 1.38;
+  text-shadow: 0 0 12px rgba(210, 255, 255, 0.32);
   pointer-events: none;
 }
 
 .reference-console {
   position: absolute;
-  top: 104px;
-  left: 28px;
+  top: 94px;
+  left: 24px;
   z-index: 5;
-  width: min(330px, calc(100vw - 56px));
-  padding: 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(170, 240, 255, 0.16);
-  background: rgba(2, 7, 16, 0.58);
-  box-shadow: 0 0 38px rgba(0, 0, 0, 0.42), inset 0 0 30px rgba(110, 245, 255, 0.035);
-  backdrop-filter: blur(18px);
+  width: min(300px, calc(100vw - 48px));
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(170, 240, 255, 0.14);
+  background: rgba(2, 7, 16, 0.78);
+  box-shadow: 0 0 26px rgba(0, 0, 0, 0.34);
 }
 
 .reference-console label {
@@ -123,58 +121,58 @@ html, body, #root {
 .reference-console input {
   box-sizing: border-box;
   width: 100%;
-  height: 44px;
+  height: 40px;
   border-radius: 999px;
-  border: 1px solid rgba(190, 246, 255, 0.18);
+  border: 1px solid rgba(190, 246, 255, 0.16);
   background: rgba(255, 255, 255, 0.055);
   color: #f3ffff;
   outline: none;
-  padding: 0 15px;
-  font-size: 14px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
 .reference-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin: 14px 0;
+  gap: 7px;
+  margin: 12px 0;
 }
 
 .reference-tabs button {
-  border: 1px solid rgba(190, 246, 255, 0.12);
-  border-radius: 12px;
-  height: 34px;
-  background: rgba(80, 255, 230, 0.06);
-  color: rgba(229, 250, 255, 0.74);
+  border: 1px solid rgba(190, 246, 255, 0.1);
+  border-radius: 10px;
+  height: 30px;
+  background: rgba(80, 255, 230, 0.045);
+  color: rgba(229, 250, 255, 0.64);
   font-weight: 800;
 }
 
 .reference-console p {
   margin: 0;
-  color: rgba(218, 242, 255, 0.56);
-  line-height: 1.6;
+  color: rgba(218, 242, 255, 0.52);
+  line-height: 1.55;
   font-size: 12px;
 }
 
 .reference-bottom {
   position: absolute;
   left: 50%;
-  bottom: 22px;
+  bottom: 18px;
   transform: translateX(-50%);
   z-index: 4;
-  padding: 9px 18px;
-  border: 1px solid rgba(180, 244, 255, 0.1);
+  padding: 7px 14px;
+  border: 1px solid rgba(180, 244, 255, 0.08);
   border-radius: 999px;
-  background: rgba(1, 5, 12, 0.38);
-  color: rgba(225, 247, 255, 0.48);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  background: rgba(1, 5, 12, 0.42);
+  color: rgba(225, 247, 255, 0.36);
+  font-size: 10px;
+  letter-spacing: 0.14em;
   white-space: nowrap;
-  backdrop-filter: blur(12px);
+  pointer-events: none;
 }
 
 .reference-video-app:not(.hud-on) .reference-bottom {
-  opacity: 0.32;
+  opacity: 0.24;
 }
 
 @media (max-width: 760px) {
@@ -186,13 +184,13 @@ html, body, #root {
   .reference-metrics {
     left: 18px;
     right: auto;
-    top: 84px;
-    transform: scale(0.92);
+    top: 72px;
+    transform: scale(0.86);
     transform-origin: left top;
   }
 
   .reference-verse {
     left: 16px;
-    bottom: 58px;
+    bottom: 54px;
   }
 }
