@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import './data/installExpandedPoetry';
 import { dynastyColors, dynastyOrder, poets, poems, type Poet, type Poem } from './data/expandedPoetry';
 import { PoetryGlobeScene } from './PoetryGlobeScene';
@@ -183,7 +183,7 @@ export function PoetryGlobeApp() {
               <p className="lead-text">拖动旋转诗云球，滚轮缩放，点击光点进入诗人星域。诗人按朝代分布在不同纬度星带，唐宋为高密度主星带。</p>
               <div className="focus-metrics">
                 {topDynasties.map((item) => (
-                  <div key={item.dynasty} style={{ '--accent': item.color } as React.CSSProperties}>
+                  <div key={item.dynasty} style={{ '--accent': item.color } as CSSProperties}>
                     <span>{item.dynasty}</span>
                     <b>{item.count}</b>
                   </div>
