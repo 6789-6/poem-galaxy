@@ -6,10 +6,11 @@ import * as THREE from 'three';
 import type { GalaxyMode, Selection } from '../App';
 import { RENDER_PRESETS, type VisualQuality } from '../config/renderPresets';
 import type { Dynasty, Poet } from '../data/poetry';
-import { dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
+import { dynastyOrder, poetById, poets } from '../data/poetry';
 import { buildRelationshipSegments, poetWorldPosition } from '../lib/galaxy';
 import GpuStarfield from './GpuStarfield';
 import NebulaClouds from './NebulaClouds';
+import PoetBurstCloud from './PoetBurstCloud';
 import SceneEffects from './SceneEffects';
 
 type SceneProps = {
@@ -31,9 +32,6 @@ function mulberry32(seed: number) {
   };
 }
 
-const splitPoemLines = (text: string) =>
-  (text.match(/[^，。！？；]+[，。！？；]?/g) ?? [text]).map((line) => line.trim()).filter(Boolean);
-
 const coldAccentByDynasty: Record<Dynasty, string> = {
   '先秦': '#5ff6ff',
   '汉魏六朝': '#9a8cff',
@@ -45,64 +43,6 @@ const coldAccentByDynasty: Record<Dynasty, string> = {
 
 function coolAccent(dynasty: Dynasty) {
   return coldAccentByDynasty[dynasty];
-}
-
-const softPointVertexShader = `
-  attribute float size;
-  uniform float uTime;
-  uniform float uPixelRatio;
-  uniform float uBaseSize;
-  uniform float uMaxSize;
-  varying vec3 vColor;
-  varying float vAlphaPulse;
-
-  void main() {
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float depthScale = 180.0 / max(18.0, -mvPosition.z);
-    float shimmer = 0.96 + 0.04 * sin(uTime * 0.25 + position.x * 0.05 + position.z * 0.04);
-    vColor = color;
-    vAlphaPulse = shimmer;
-    gl_PointSize = clamp(size * uBaseSize * depthScale * uPixelRatio, 0.8, uMaxSize);
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const softPointFragmentShader = `
-  uniform float uOpacity;
-  varying vec3 vColor;
-  varying float vAlphaPulse;
-
-  void main() {
-    vec2 uv = gl_PointCoord * 2.0 - 1.0;
-    float r2 = dot(uv, uv);
-    if (r2 > 1.0) discard;
-    float body = exp(-r2 * 8.0);
-    float core = exp(-r2 * 32.0) * 0.22;
-    float alpha = (body * 0.72 + core) * uOpacity * vAlphaPulse;
-    if (alpha < 0.01) discard;
-    vec3 color = vColor * (0.7 + core * 0.45);
-    gl_FragColor = vec4(color, alpha);
-  }
-`;
-
-function createSoftPointMaterial(baseSize: number, opacity: number, maxSize: number, pixelRatioCap: number) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, pixelRatioCap) },
-      uBaseSize: { value: baseSize },
-      uOpacity: { value: opacity },
-      uMaxSize: { value: maxSize }
-    },
-    vertexShader: softPointVertexShader,
-    fragmentShader: softPointFragmentShader,
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    depthTest: true,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false
-  });
 }
 
 function smoothStep01(value: number) {
@@ -117,10 +57,7 @@ function cubicEaseOut(value: number) {
 
 function quadraticBezier(out: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, t: number) {
   const inv = 1 - t;
-  out.set(0, 0, 0)
-    .addScaledVector(a, inv * inv)
-    .addScaledVector(b, 2 * inv * t)
-    .addScaledVector(c, t * t);
+  out.set(0, 0, 0).addScaledVector(a, inv * inv).addScaledVector(b, 2 * inv * t).addScaledVector(c, t * t);
   return out;
 }
 
@@ -132,6 +69,63 @@ function cameraOffsetForMode(mode: GalaxyMode, orbit: number, fly = 0) {
     height,
     Math.sin(orbit) * distance * (mode === 'network' ? 0.9 : 0.74)
   );
+}
+
+const softPointVertexShader = `
+  attribute float size;
+  uniform float uTime;
+  uniform float uPixelRatio;
+  uniform float uBaseSize;
+  uniform float uMaxSize;
+  varying vec3 vColor;
+  varying float vAlphaPulse;
+
+  void main() {
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    float depthScale = 180.0 / max(18.0, -mvPosition.z);
+    float shimmer = 0.95 + 0.05 * sin(uTime * 0.3 + position.x * 0.05 + position.z * 0.04);
+    vColor = color;
+    vAlphaPulse = shimmer;
+    gl_PointSize = clamp(size * uBaseSize * depthScale * uPixelRatio, 0.7, uMaxSize);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const softPointFragmentShader = `
+  uniform float uOpacity;
+  varying vec3 vColor;
+  varying float vAlphaPulse;
+
+  void main() {
+    vec2 uv = gl_PointCoord * 2.0 - 1.0;
+    float r2 = dot(uv, uv);
+    if (r2 > 1.0) discard;
+    float body = exp(-r2 * 7.5);
+    float core = exp(-r2 * 32.0) * 0.24;
+    float alpha = (body * 0.7 + core) * uOpacity * vAlphaPulse;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(vColor * (0.75 + core * 0.55), alpha);
+  }
+`;
+
+function createSoftPointMaterial(baseSize: number, opacity: number, maxSize: number, pixelRatioCap: number) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uPixelRatio: { value: Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, pixelRatioCap) },
+      uBaseSize: { value: baseSize },
+      uOpacity: { value: opacity },
+      uMaxSize: { value: maxSize }
+    },
+    vertexShader: softPointVertexShader,
+    fragmentShader: softPointFragmentShader,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false
+  });
 }
 
 function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: GalaxyMode; visualQuality: VisualQuality }) {
@@ -165,7 +159,6 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
     if (focusChanged || modeChanged) {
       const route = flight.current;
       const currentPosition = camera.position.clone();
-      const currentLook = target.current.clone();
       const orbitSeed = Math.atan2(currentPosition.z - nextFocus.z, currentPosition.x - nextFocus.x) + (focusChanged ? 0.92 : 0.32);
       const finalOffset = cameraOffsetForMode(mode, orbitSeed + 0.38, mode === 'reading' ? 0.15 : 0.35);
       const finalPosition = nextFocus.clone().add(finalOffset);
@@ -183,7 +176,7 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
       route.start.copy(currentPosition);
       route.control.copy(nextFocus).addScaledVector(outward, pullbackDistance).addScaledVector(side, lateral).add(new THREE.Vector3(0, lift, 0));
       route.end.copy(finalPosition);
-      route.lookStart.copy(currentLook);
+      route.lookStart.copy(target.current);
       route.lookControl.copy(nextFocus).addScaledVector(side, lateral * 0.28).add(new THREE.Vector3(0, 9, 0));
       route.lookEnd.copy(nextFocus);
       route.roll = focusChanged ? (side.x > 0 ? 1 : -1) * 0.012 : 0.006;
@@ -262,65 +255,13 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
   const material = useMemo(() => createSoftPointMaterial(0.34, preset.deepFieldOpacity, 3.0, preset.nebula.pixelRatioCap), []);
   useEffect(() => {
     material.uniforms.uOpacity.value = preset.deepFieldOpacity;
-    material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, preset.nebula.pixelRatioCap);
+    material.uniforms.uPixelRatio.value = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, preset.nebula.pixelRatioCap);
   }, [material, preset]);
   useFrame(() => {
     material.uniforms.uTime.value = 0;
   });
 
   return <points geometry={data} material={material} frustumCulled={false} />;
-}
-
-function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
-  const color = coolAccent(poet.dynasty);
-  const group = useRef<THREE.Group>(null);
-  const data = useMemo(() => {
-    const random = mulberry32(poet.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 911));
-    const baseCount = mode === 'reading' ? 2300 : 1050;
-    const count = visualQuality === 'performance' ? Math.round(baseCount * 0.45) : baseCount;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const baseColor = new THREE.Color(color);
-    for (let i = 0; i < count; i += 1) {
-      const radius = 3.5 + Math.pow(random(), 0.58) * (mode === 'reading' ? 16 : 9);
-      const angle = random() * Math.PI * 2;
-      const band = Math.floor(random() * 5);
-      const tilt = (band - 2) * 0.34;
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = Math.sin(angle * 2.2) * 0.9 + Math.sin(angle) * radius * tilt * 0.12;
-      positions[i * 3 + 2] = Math.sin(angle) * radius * (0.64 + band * 0.07);
-      const glow = 0.4 + random() * 0.55;
-      colors[i * 3] = Math.min(1, baseColor.r * glow + 0.08);
-      colors[i * 3 + 1] = Math.min(1, baseColor.g * glow + 0.12);
-      colors[i * 3 + 2] = Math.min(1, baseColor.b * glow + 0.2);
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.computeBoundingSphere();
-    return geometry;
-  }, [color, mode, poet.id, visualQuality]);
-
-  useFrame(({ clock }) => {
-    if (!group.current) return;
-    const speed = visualQuality === 'performance' ? 0.35 : 0.62;
-    group.current.rotation.y = clock.elapsedTime * 0.065 * speed;
-    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.12 * speed) * 0.05;
-  });
-
-  return (
-    <group ref={group} position={poet.position}>
-      <points geometry={data} frustumCulled={false}>
-        <pointsMaterial vertexColors size={0.09} sizeAttenuation transparent opacity={mode === 'reading' ? 0.72 : 0.48} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-      </points>
-      {visualQuality !== 'performance' && [4.2, 7.6, 11.2, 15.1].map((radius, index) => (
-        <mesh key={radius} rotation={[Math.PI / 2 + index * 0.1, 0.2 * index, index * 0.45]}>
-          <torusGeometry args={[radius, 0.012, 6, 180]} />
-          <meshBasicMaterial color={color} transparent opacity={0.09 - index * 0.015} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
-  );
 }
 
 function FocusBeacon({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
@@ -345,49 +286,6 @@ function FocusBeacon({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMo
         <cylinderGeometry args={[1, 1, 1, 16]} />
         <meshBasicMaterial color={color} transparent opacity={0.055} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
-    </group>
-  );
-}
-
-function FloatingVerseConstellation({ selection, mode, visualQuality }: { selection: Selection; mode: GalaxyMode; visualQuality: VisualQuality }) {
-  const poet = selection.poet;
-  const color = coolAccent(poet.dynasty);
-  const fragments = useMemo(() => {
-    const limit = visualQuality === 'performance' ? 3 : 7;
-    if (selection.kind === 'poem') return splitPoemLines(selection.poem.fullText).slice(0, limit);
-    const localPoems = poemsByPoet[poet.id] ?? [];
-    return localPoems.flatMap((poem) => splitPoemLines(poem.excerpt)).slice(0, limit);
-  }, [poet.id, selection, visualQuality]);
-
-  if (mode !== 'reading') return null;
-
-  return (
-    <group position={poet.position}>
-      {fragments.map((line, index) => {
-        const angle = (index / Math.max(1, fragments.length)) * Math.PI * 2 + index * 0.24;
-        const radius = 8.5 + (index % 3) * 3.1;
-        return (
-          <Billboard key={`${line}-${index}`} position={[Math.cos(angle) * radius, 3.2 + Math.sin(index * 1.7) * 2.6, Math.sin(angle) * radius * 0.72]}>
-            <Html center distanceFactor={9} className="floating-verse-wrap">
-              <div className="floating-verse" style={{ '--accent': color, '--delay': `${index * 120}ms` } as CSSProperties}>{line}</div>
-            </Html>
-          </Billboard>
-        );
-      })}
-    </group>
-  );
-}
-
-function PoetryCore({ visualQuality }: { visualQuality: VisualQuality }) {
-  if (visualQuality === 'performance') return null;
-  return (
-    <group position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-      {[48, 72, 104].map((radius, index) => (
-        <mesh key={radius} rotation={[0, index * 0.18, index * 0.3]}>
-          <torusGeometry args={[radius, 0.012, 8, 220]} />
-          <meshBasicMaterial color={index === 0 ? '#70f5ff' : '#8b96ff'} transparent opacity={0.035 - index * 0.006} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-        </mesh>
-      ))}
     </group>
   );
 }
@@ -551,13 +449,11 @@ function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection
       <pointLight position={[64, -24, 34]} intensity={0.28} color="#7b78ff" />
       <DeepField visualQuality={visualQuality} />
       <NebulaClouds visualQuality={visualQuality} />
-      <PoetryCore visualQuality={visualQuality} />
       <GpuStarfield activeDynasties={activeDynasties} visualQuality={visualQuality} />
       <DynastyRings visualQuality={visualQuality} />
       <DynastySpaceLabels visualQuality={visualQuality} />
-      <PoemOrbitCloud poet={selectedPoet} mode={mode} visualQuality={visualQuality} />
+      <PoetBurstCloud poet={selectedPoet} mode={mode} visualQuality={visualQuality} />
       <FocusBeacon poet={selectedPoet} mode={mode} visualQuality={visualQuality} />
-      <FloatingVerseConstellation selection={selection} mode={mode} visualQuality={visualQuality} />
       <RelationshipNetwork activePoetId={selectedPoetId} mode={mode} />
       <NetworkAnchorLabels mode={mode} visualQuality={visualQuality} onSelectPoet={onSelectPoet} />
       {poets.map((poet) => (
