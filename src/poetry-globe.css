@@ -1,0 +1,194 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #02070d;
+  color: #eaf7ff;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+button, input { font: inherit; }
+
+.globe-app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(39, 107, 126, 0.16), transparent 42%),
+    radial-gradient(circle at 12% 16%, rgba(255, 120, 216, 0.08), transparent 30%),
+    #02070d;
+}
+
+.globe-canvas { position: absolute; inset: 0; }
+
+.globe-hud {
+  position: absolute;
+  z-index: 5;
+  color: #e9fbff;
+  background: rgba(4, 13, 24, 0.68);
+  border: 1px solid rgba(150, 225, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+}
+
+.globe-hud-top {
+  top: 22px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #8ab7c9;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  font-weight: 800;
+}
+
+h1, h2 { margin: 0; }
+h1 {
+  font-size: clamp(34px, 5vw, 64px);
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 22px rgba(128, 236, 255, 0.44);
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.stats span {
+  border: 1px solid rgba(218, 244, 255, 0.14);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #e9f8ff;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.globe-panel {
+  right: 24px;
+  bottom: 24px;
+  width: min(390px, calc(100vw - 48px));
+  max-height: min(68vh, 620px);
+  overflow: auto;
+  border-radius: 24px;
+  padding: 18px;
+}
+
+.globe-panel h2 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.globe-panel p {
+  margin: 8px 0;
+  color: rgba(233, 247, 255, 0.76);
+  line-height: 1.75;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.tag-row span {
+  border: 1px solid rgba(160, 232, 255, 0.18);
+  background: rgba(160, 232, 255, 0.08);
+  color: #d8f7ff;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+.search-row input {
+  min-width: 0;
+  border: 1px solid rgba(175, 231, 255, 0.16);
+  border-radius: 14px;
+  padding: 11px 12px;
+  color: #eaffff;
+  outline: none;
+  background: rgba(0, 0, 0, 0.22);
+}
+.search-row button, .back-btn, .poem-list button {
+  border: 1px solid rgba(175, 231, 255, 0.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #eaffff;
+  background: rgba(96, 192, 218, 0.12);
+  cursor: pointer;
+}
+.search-row button:hover, .back-btn:hover, .poem-list button:hover {
+  background: rgba(134, 233, 255, 0.18);
+}
+
+.back-btn { width: 100%; margin-top: 10px; }
+
+.poem-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.poem-list button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+.poem-list small {
+  color: rgba(233, 247, 255, 0.62);
+  line-height: 1.55;
+}
+.poem-text { white-space: pre-wrap; }
+
+.hover-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  z-index: 6;
+  transform: translateX(-50%);
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(4, 13, 24, 0.7);
+  border: 1px solid rgba(160, 232, 255, 0.18);
+  color: #eafcff;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.globe-label {
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 7, 14, 0.72);
+  border: 1px solid rgba(183, 238, 255, 0.22);
+  color: #eafcff;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(120, 224, 255, 0.5);
+  pointer-events: none;
+}
+.globe-label.strong { font-size: 14px; }
+
+@media (max-width: 760px) {
+  .globe-hud-top { left: 12px; right: 12px; top: 12px; padding: 12px; }
+  .stats { display: none; }
+  .globe-panel { left: 12px; right: 12px; bottom: 12px; width: auto; max-height: 45vh; }
+}
