@@ -1,6 +1,6 @@
 import { Color, Vector3 } from 'three';
 import type { Poet } from '../data/poetry';
-import { dynastyColors, dynastyOrder, poets } from '../data/poetry';
+import { dynastyOrder, poets } from '../data/poetry';
 
 export type GalaxyBuffers = {
   positions: Float32Array;
@@ -56,6 +56,11 @@ function cloudColor(random: () => number) {
   const deep = new Color(random() > 0.5 ? '#050b2f' : '#021d33');
   base.lerp(deep, 0.08 + random() * 0.18);
   return base;
+}
+
+function poetColor(poet: Poet) {
+  const dynastySlot = dynastyOrder.indexOf(poet.dynasty);
+  return new Color(coolDynastyPalette[Math.max(0, dynastySlot) % coolDynastyPalette.length]);
 }
 
 export function generateGalaxyBuffers(count = 150000): GalaxyBuffers {
@@ -158,31 +163,40 @@ export function poetWorldPosition(poet: Poet) {
   return new Vector3(poet.position[0], poet.position[1], poet.position[2]);
 }
 
-function pushArc(source: Poet, target: Poet, segments: number[], colors: number[], highlight = false) {
+function pushBurstArc(source: Poet, target: Poet, segments: number[], colors: number[], strength = 1, seed = 0) {
   const start = new Vector3(...source.position);
   const end = new Vector3(...target.position);
-  const mid = start.clone().lerp(end, 0.5);
   const distance = start.distanceTo(end);
-  mid.y += 7 + distance * 0.18;
-  mid.z += Math.sin(distance) * 3;
+  const direction = end.clone().sub(start).normalize();
+  const sideways = new Vector3(-direction.z, 0.25 + Math.sin(seed) * 0.18, direction.x).normalize();
+  const upward = new Vector3(0, 1, 0);
 
-  const sourceColor = new Color(dynastyColors[source.dynasty]);
-  const targetColor = new Color(dynastyColors[target.dynasty]);
-  const steps = highlight ? 20 : 14;
+  const mid = start.clone().lerp(end, 0.5)
+    .addScaledVector(upward, 12 + distance * (0.14 + strength * 0.08))
+    .addScaledVector(sideways, Math.sin(seed * 1.73) * (8 + distance * 0.07))
+    .add(new Vector3(0, Math.sin(seed * 0.9) * 3, Math.cos(seed * 1.17) * 11));
+
+  const sourceColor = poetColor(source).lerp(new Color('#f5fdff'), 0.18 + strength * 0.12);
+  const targetColor = poetColor(target).lerp(new Color('#bff7ff'), 0.16);
+  const steps = Math.round(14 + strength * 14);
 
   let previous = start;
   for (let i = 1; i <= steps; i += 1) {
-    const t = i / steps;
+    const raw = i / steps;
+    const t = raw * raw * (3 - 2 * raw);
     const a = start.clone().lerp(mid, t);
     const b = mid.clone().lerp(end, t);
     const point = a.lerp(b, t);
+    const breathing = Math.sin((raw + seed * 0.13) * Math.PI * 2) * 0.55 + 0.45;
+    const lineBoost = 0.18 + strength * (0.78 + breathing * 0.24);
+
     segments.push(previous.x, previous.y, previous.z, point.x, point.y, point.z);
-    const c1 = sourceColor.clone().lerp(targetColor, Math.max(0, t - 0.08));
-    const c2 = sourceColor.clone().lerp(targetColor, t);
-    const boost = highlight ? 1.12 : 0.62;
+
+    const c1 = sourceColor.clone().lerp(targetColor, Math.max(0, raw - 0.1));
+    const c2 = sourceColor.clone().lerp(targetColor, raw);
     colors.push(
-      clamp01(c1.r * boost), clamp01(c1.g * boost), clamp01(c1.b * boost),
-      clamp01(c2.r * boost), clamp01(c2.g * boost), clamp01(c2.b * boost)
+      clamp01(c1.r * lineBoost), clamp01(c1.g * lineBoost), clamp01(c1.b * lineBoost + strength * 0.05),
+      clamp01(c2.r * lineBoost * 1.08), clamp01(c2.g * lineBoost * 1.08), clamp01(c2.b * lineBoost * 1.12)
     );
     previous = point;
   }
@@ -191,27 +205,53 @@ function pushArc(source: Poet, target: Poet, segments: number[], colors: number[
 const poetMap = new Map(poets.map((poet) => [poet.id, poet]));
 const relationshipSegmentCache = new Map<string, { positions: Float32Array; colors: Float32Array }>();
 
+function addFocusedNetwork(source: Poet, segments: number[], colors: number[], seedBase: number, strength = 1) {
+  const visited = new Set<string>();
+
+  source.relations.forEach((targetId, index) => {
+    const target = poetMap.get(targetId);
+    if (!target) return;
+    visited.add(target.id);
+    pushBurstArc(source, target, segments, colors, strength, seedBase + index * 1.87);
+
+    target.relations.slice(0, 3).forEach((secondId, secondIndex) => {
+      const second = poetMap.get(secondId);
+      if (!second || second.id === source.id || visited.has(`${target.id}:${second.id}`)) return;
+      visited.add(`${target.id}:${second.id}`);
+      pushBurstArc(target, second, segments, colors, strength * 0.36, seedBase + index * 2.31 + secondIndex * 0.77);
+    });
+  });
+}
+
 export function buildRelationshipSegments(activePoetId?: string) {
-  const cacheKey = activePoetId ?? '__all__';
+  const primaryId = activePoetId ?? 'li-bai';
+  const cacheKey = activePoetId ? `focus:${activePoetId}` : 'burst:li-bai:with-background';
   const cached = relationshipSegmentCache.get(cacheKey);
   if (cached) return cached;
 
   const segments: number[] = [];
   const colors: number[] = [];
   const seen = new Set<string>();
+  const primary = poetMap.get(primaryId) ?? poets[0];
 
-  poets.forEach((poet) => {
-    poet.relations.forEach((targetId) => {
-      const target = poetMap.get(targetId);
-      if (!target) return;
-      const key = [poet.id, target.id].sort().join('::');
-      if (seen.has(key)) return;
-      seen.add(key);
-      const highlight = !activePoetId || poet.id === activePoetId || target.id === activePoetId;
-      if (activePoetId && !highlight) return;
-      pushArc(poet, target, segments, colors, highlight);
-    });
-  });
+  addFocusedNetwork(primary, segments, colors, 5.21, activePoetId ? 1.08 : 1.18);
+
+  if (!activePoetId) {
+    [...poets]
+      .sort((a, b) => b.brightness - a.brightness)
+      .slice(0, 8)
+      .forEach((poet, poetIndex) => {
+        if (poet.id === primary.id) return;
+        poet.relations.slice(0, 2).forEach((targetId, targetIndex) => {
+          const target = poetMap.get(targetId);
+          if (!target) return;
+          const key = [poet.id, target.id].sort().join('::');
+          if (seen.has(key)) return;
+          seen.add(key);
+          pushBurstArc(poet, target, segments, colors, 0.22, 17.3 + poetIndex * 1.41 + targetIndex * 0.5);
+        });
+      });
+  }
 
   const result = {
     positions: new Float32Array(segments),
