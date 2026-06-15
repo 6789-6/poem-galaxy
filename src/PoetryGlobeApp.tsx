@@ -14,6 +14,18 @@ function findPoemById(id?: string | null) {
   return poems.find((poem) => poem.id === id) ?? null;
 }
 
+function getLayerTitle(viewMode: ViewMode, selectedPoet: Poet | null, selectedPoem: Poem | null) {
+  if (viewMode === 'poem') return selectedPoem?.title ?? '诗歌阅读层';
+  if (viewMode === 'poet') return selectedPoet?.name ?? '诗人星域';
+  return '朝代星带总览';
+}
+
+function getLayerMeta(viewMode: ViewMode, selectedPoet: Poet | null, selectedPoem: Poem | null) {
+  if (viewMode === 'poem') return selectedPoem?.form ?? 'Poem Layer';
+  if (viewMode === 'poet' && selectedPoet) return `${selectedPoet.dynasty} · ${selectedPoet.years}`;
+  return 'Overview · Dynasty Bands';
+}
+
 export function PoetryGlobeApp() {
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [selectedPoetId, setSelectedPoetId] = useState<string | null>(null);
@@ -36,6 +48,11 @@ export function PoetryGlobeApp() {
       count: poets.filter((poet) => poet.dynasty === dynasty).length
     })),
     []
+  );
+
+  const topDynasties = useMemo(
+    () => [...dynastyStats].sort((a, b) => b.count - a.count).slice(0, 3),
+    [dynastyStats]
   );
 
   useEffect(() => {
@@ -100,6 +117,9 @@ export function PoetryGlobeApp() {
     setViewMode('overview');
   };
 
+  const layerTitle = getLayerTitle(viewMode, selectedPoet, selectedPoem);
+  const layerMeta = getLayerMeta(viewMode, selectedPoet, selectedPoem);
+
   return (
     <main className="globe-app">
       <Canvas
@@ -121,66 +141,91 @@ export function PoetryGlobeApp() {
       </Canvas>
 
       {hudVisible && (
-        <section className="globe-hud globe-hud-top">
-          <div>
-            <p className="eyebrow">POETRY CLOUD · 3D OBSERVATORY</p>
-            <h1>诗云</h1>
+        <section className="top-command">
+          <div className="brand-block">
+            <span className="brand-orb" />
+            <div>
+              <p className="eyebrow">POETRY CLOUD · 3D OBSERVATORY</p>
+              <h1>诗云</h1>
+            </div>
           </div>
-          <div className="stats">
-            <span>{poets.length.toLocaleString()} 位诗人节点</span>
-            <span>{poems.length.toLocaleString()} 个诗作入口</span>
-            <span>{dynastyCount} 条朝代星带</span>
-            <span>H 隐藏界面</span>
+          <div className="top-stats">
+            <article>
+              <b>{poets.length.toLocaleString()}</b>
+              <span>诗人节点</span>
+            </article>
+            <article>
+              <b>{poems.length.toLocaleString()}</b>
+              <span>诗作入口</span>
+            </article>
+            <article>
+              <b>{dynastyCount}</b>
+              <span>朝代星带</span>
+            </article>
           </div>
         </section>
       )}
 
       {hudVisible && (
-        <section className="globe-hud globe-panel">
-          <p className="eyebrow">LAYER</p>
-          <h2>
-            {viewMode === 'overview' && '总览：朝代星带'}
-            {viewMode === 'poet' && selectedPoet?.name}
-            {viewMode === 'poem' && selectedPoem?.title}
-          </h2>
+        <aside className="layer-panel">
+          <div className="panel-orbit" />
+          <header className="panel-header">
+            <div>
+              <p className="eyebrow">CURRENT LAYER</p>
+              <h2>{layerTitle}</h2>
+              <span className="layer-meta">{layerMeta}</span>
+            </div>
+            <span className={`mode-chip mode-${viewMode}`}>{viewMode.toUpperCase()}</span>
+          </header>
+
           {viewMode === 'overview' && (
-            <>
-              <p>拖动旋转，滚轮缩放，点击光点进入诗人星域。诗人现在按时代分布在不同纬度星带上，唐宋星带密度最高。</p>
-              <div className="tag-row">
+            <div className="panel-section">
+              <p className="lead-text">拖动旋转诗云球，滚轮缩放，点击光点进入诗人星域。诗人按朝代分布在不同纬度星带，唐宋为高密度主星带。</p>
+              <div className="focus-metrics">
+                {topDynasties.map((item) => (
+                  <div key={item.dynasty} style={{ '--accent': item.color } as React.CSSProperties}>
+                    <span>{item.dynasty}</span>
+                    <b>{item.count}</b>
+                  </div>
+                ))}
+              </div>
+              <div className="tag-row dynasty-tags">
                 {dynastyStats.map((item) => (
                   <span key={item.dynasty} style={{ borderColor: item.color, color: item.color }}>
                     {item.dynasty} · {item.count}
                   </span>
                 ))}
               </div>
-            </>
+            </div>
           )}
+
           {viewMode === 'poet' && selectedPoet && (
-            <>
-              <p>{selectedPoet.dynasty} · {selectedPoet.years}</p>
-              <p>{selectedPoet.summary}</p>
+            <div className="panel-section">
+              <p className="lead-text">{selectedPoet.summary}</p>
               <div className="tag-row">
                 {selectedPoet.themes.map((theme) => <span key={theme}>{theme}</span>)}
               </div>
               <div className="poem-list">
                 {selectedPoetPoems.map((poem) => (
                   <button key={poem.id} onClick={() => selectPoem(poem)}>
+                    <span className="poem-index">POEM</span>
                     <b>{poem.title}</b>
                     <small>{poem.excerpt}</small>
                   </button>
                 ))}
               </div>
-            </>
+            </div>
           )}
+
           {viewMode === 'poem' && selectedPoem && (
-            <>
-              <p>{selectedPoem.form}</p>
+            <div className="panel-section poem-reader-card">
               <p className="poem-text">{selectedPoem.fullText}</p>
               <div className="tag-row">
                 {selectedPoem.themes.map((theme) => <span key={theme}>{theme}</span>)}
               </div>
-            </>
+            </div>
           )}
+
           <div className="search-row">
             <input
               value={query}
@@ -191,6 +236,16 @@ export function PoetryGlobeApp() {
             <button onClick={handleSearch}>定位</button>
           </div>
           {backLabel && <button className="back-btn" onClick={handleBack}>{backLabel}</button>}
+        </aside>
+      )}
+
+      {hudVisible && (
+        <section className="control-dock">
+          <span>拖动旋转</span>
+          <span>滚轮缩放</span>
+          <span>点击进入</span>
+          <span>Esc 返回</span>
+          <span>H 隐藏界面</span>
         </section>
       )}
 
