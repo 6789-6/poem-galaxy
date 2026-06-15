@@ -8,6 +8,7 @@
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 button, input { font: inherit; }
+button { cursor: pointer; }
 
 .globe-app {
   position: relative;
@@ -15,87 +16,127 @@ button, input { font: inherit; }
   height: 100vh;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 50%, rgba(39, 107, 126, 0.16), transparent 42%),
-    radial-gradient(circle at 12% 16%, rgba(255, 120, 216, 0.08), transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(63, 195, 235, 0.11), transparent 43%),
+    radial-gradient(circle at 14% 18%, rgba(255, 111, 221, 0.075), transparent 29%),
+    radial-gradient(circle at 86% 78%, rgba(109, 255, 225, 0.05), transparent 34%),
     #02070d;
 }
 
-.globe-canvas { position: absolute; inset: 0; }
+.globe-app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.18) 56%, rgba(0,0,0,0.75) 100%);
+}
+
+.globe-app::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, transparent 0%, transparent 55%, rgba(0,0,0,0.72) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.46), transparent 22%, transparent 78%, rgba(0,0,0,0.5));
+}
+
+.globe-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
 
 .globe-hud {
   position: absolute;
   z-index: 5;
   color: #e9fbff;
-  background: rgba(4, 13, 24, 0.68);
-  border: 1px solid rgba(150, 225, 255, 0.16);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(150, 225, 255, 0.15);
+  background:
+    linear-gradient(140deg, rgba(5, 16, 29, 0.58), rgba(4, 8, 18, 0.38)),
+    radial-gradient(circle at 0% 0%, rgba(115, 239, 255, 0.11), transparent 42%);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.32), inset 0 0 28px rgba(120, 238, 255, 0.035);
+  backdrop-filter: blur(10px) saturate(1.08);
 }
 
 .globe-hud-top {
-  top: 22px;
-  left: 24px;
-  right: 24px;
+  top: 18px;
+  left: 22px;
+  right: 22px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  padding: 14px 18px;
-  border-radius: 22px;
+  padding: 13px 16px;
+  border-radius: 24px;
   pointer-events: none;
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #8ab7c9;
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  font-weight: 800;
+  color: rgba(169, 224, 244, 0.72);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  font-weight: 900;
 }
 
 h1, h2 { margin: 0; }
 h1 {
-  font-size: clamp(34px, 5vw, 64px);
+  font-size: clamp(32px, 4.2vw, 58px);
   line-height: 0.95;
   letter-spacing: 0.04em;
-  text-shadow: 0 0 22px rgba(128, 236, 255, 0.44);
+  text-shadow:
+    0 0 16px rgba(128, 236, 255, 0.48),
+    0 0 44px rgba(107, 255, 230, 0.18);
 }
 
 .stats {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .stats span {
   border: 1px solid rgba(218, 244, 255, 0.14);
   border-radius: 999px;
-  padding: 7px 12px;
+  padding: 7px 11px;
   background: rgba(255, 255, 255, 0.045);
-  color: #e9f8ff;
+  color: rgba(234, 250, 255, 0.86);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
+  box-shadow: inset 0 0 16px rgba(255,255,255,0.025);
 }
 
 .globe-panel {
   right: 24px;
   bottom: 24px;
-  width: min(390px, calc(100vw - 48px));
+  width: min(376px, calc(100vw - 48px));
   max-height: min(68vh, 620px);
   overflow: auto;
-  border-radius: 24px;
+  border-radius: 26px;
   padding: 18px;
+  scrollbar-width: thin;
 }
 
 .globe-panel h2 {
-  font-size: 28px;
+  font-size: 26px;
   margin-bottom: 10px;
+  letter-spacing: 0.035em;
+  text-shadow: 0 0 22px rgba(121, 236, 255, 0.28);
 }
 
 .globe-panel p {
   margin: 8px 0;
-  color: rgba(233, 247, 255, 0.76);
+  color: rgba(233, 247, 255, 0.72);
   line-height: 1.75;
+  font-size: 14px;
 }
 
 .tag-row {
@@ -105,8 +146,8 @@ h1 {
   margin: 12px 0;
 }
 .tag-row span {
-  border: 1px solid rgba(160, 232, 255, 0.18);
-  background: rgba(160, 232, 255, 0.08);
+  border: 1px solid rgba(160, 232, 255, 0.16);
+  background: rgba(160, 232, 255, 0.075);
   color: #d8f7ff;
   border-radius: 999px;
   padding: 5px 9px;
@@ -121,23 +162,27 @@ h1 {
 }
 .search-row input {
   min-width: 0;
-  border: 1px solid rgba(175, 231, 255, 0.16);
-  border-radius: 14px;
+  border: 1px solid rgba(175, 231, 255, 0.15);
+  border-radius: 15px;
   padding: 11px 12px;
   color: #eaffff;
   outline: none;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.2);
+}
+.search-row input:focus {
+  border-color: rgba(128, 240, 255, 0.38);
+  box-shadow: 0 0 0 3px rgba(128, 240, 255, 0.06);
 }
 .search-row button, .back-btn, .poem-list button {
-  border: 1px solid rgba(175, 231, 255, 0.18);
-  border-radius: 14px;
+  border: 1px solid rgba(175, 231, 255, 0.17);
+  border-radius: 15px;
   padding: 10px 12px;
   color: #eaffff;
-  background: rgba(96, 192, 218, 0.12);
-  cursor: pointer;
+  background: linear-gradient(150deg, rgba(96, 192, 218, 0.12), rgba(255,255,255,0.035));
 }
 .search-row button:hover, .back-btn:hover, .poem-list button:hover {
-  background: rgba(134, 233, 255, 0.18);
+  border-color: rgba(134, 233, 255, 0.34);
+  background: rgba(134, 233, 255, 0.15);
 }
 
 .back-btn { width: 100%; margin-top: 10px; }
@@ -152,11 +197,19 @@ h1 {
   gap: 4px;
   text-align: left;
 }
+.poem-list b { color: #f5fdff; }
 .poem-list small {
-  color: rgba(233, 247, 255, 0.62);
+  color: rgba(233, 247, 255, 0.6);
   line-height: 1.55;
 }
-.poem-text { white-space: pre-wrap; }
+.poem-text {
+  white-space: pre-wrap;
+  font-family: "STKaiti", "KaiTi", "Songti SC", serif;
+  color: rgba(255, 252, 238, 0.92) !important;
+  font-size: 18px !important;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 18px rgba(135, 238, 255, 0.16);
+}
 
 .hover-badge {
   position: absolute;
@@ -166,11 +219,12 @@ h1 {
   transform: translateX(-50%);
   padding: 9px 14px;
   border-radius: 999px;
-  background: rgba(4, 13, 24, 0.7);
+  background: rgba(4, 13, 24, 0.68);
   border: 1px solid rgba(160, 232, 255, 0.18);
   color: #eafcff;
   font-weight: 800;
   pointer-events: none;
+  box-shadow: 0 0 28px rgba(106, 232, 255, 0.12);
 }
 
 .globe-label {
@@ -185,7 +239,13 @@ h1 {
   text-shadow: 0 0 12px rgba(120, 224, 255, 0.5);
   pointer-events: none;
 }
-.globe-label.strong { font-size: 14px; }
+.globe-label.strong {
+  font-size: 14px;
+  background: linear-gradient(135deg, rgba(152, 242, 255, 0.9), rgba(255, 238, 178, 0.86));
+  color: #06131a;
+  border-color: transparent;
+  box-shadow: 0 0 28px rgba(133, 239, 255, 0.34);
+}
 
 @media (max-width: 760px) {
   .globe-hud-top { left: 12px; right: 12px; top: 12px; padding: 12px; }
