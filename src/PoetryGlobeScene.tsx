@@ -9,7 +9,7 @@ import {
   Color,
   Vector3
 } from 'three';
-import { dynastyColors, poets, poems, type Poet, type Poem } from './data/poetry';
+import { dynastyColors, dynastyOrder, poets, poems, type Dynasty, type Poet, type Poem } from './data/expandedPoetry';
 
 type ViewMode = 'overview' | 'poet' | 'poem';
 
@@ -22,8 +22,48 @@ type SceneProps = {
   onHoverName: (name: string | null) => void;
 };
 
+type DynastyBand = {
+  latitude: number;
+  width: number;
+  radius: number;
+  phase: number;
+  arms: number;
+  label: string;
+};
+
 const AXIS = new Vector3(34, 21, 27);
 const WHITE = new Color('#f3fdff');
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+const DYNASTY_BANDS: Record<Dynasty, DynastyBand> = {
+  '先秦': { latitude: 0.72, width: 0.11, radius: 0.82, phase: -0.75, arms: 2, label: '先秦 · 神话源流' },
+  '汉魏六朝': { latitude: 0.43, width: 0.13, radius: 0.88, phase: 0.42, arms: 3, label: '汉魏六朝 · 风骨山水' },
+  '唐': { latitude: 0.14, width: 0.2, radius: 1.0, phase: 1.08, arms: 5, label: '唐 · 高密度主星带' },
+  '宋': { latitude: -0.16, width: 0.18, radius: 0.98, phase: -0.18, arms: 4, label: '宋 · 词与理趣星带' },
+  '元明清': { latitude: -0.47, width: 0.14, radius: 0.92, phase: 0.88, arms: 3, label: '元明清 · 曲词余脉' },
+  '近现代': { latitude: -0.72, width: 0.12, radius: 0.86, phase: -1.2, arms: 2, label: '近现代 · 新诗南弧' }
+};
+
+const DYNASTY_PARTICLE_WEIGHTS: Record<Dynasty, number> = {
+  '先秦': 5,
+  '汉魏六朝': 8,
+  '唐': 18,
+  '宋': 15,
+  '元明清': 9,
+  '近现代': 8
+};
+
+const DYNASTY_PARTICLE_SEQUENCE = dynastyOrder.flatMap((dynasty) =>
+  Array.from({ length: DYNASTY_PARTICLE_WEIGHTS[dynasty] }, () => dynasty)
+);
+
+const POET_BAND_INDEX = new Map<string, { index: number; count: number }>();
+dynastyOrder.forEach((dynasty) => {
+  const group = poets.filter((poet) => poet.dynasty === dynasty);
+  group.forEach((poet, index) => {
+    POET_BAND_INDEX.set(poet.id, { index, count: group.length });
+  });
+});
 
 const SOFT_POINT_VERTEX = `
   attribute vec3 color;
@@ -53,8 +93,31 @@ const SOFT_POINT_FRAGMENT = `
   }
 `;
 
+function hash01(value: string, salt = '') {
+  let hash = 2166136261;
+  const text = `${value}:${salt}`;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 100000) / 100000;
+}
+
 function poetPosition(poet: Poet) {
-  return new Vector3(poet.position[0] / 70, poet.position[1] / 24, poet.position[2] / 38).multiply(AXIS);
+  const band = DYNASTY_BANDS[poet.dynasty];
+  const bandIndex = POET_BAND_INDEX.get(poet.id) ?? { index: 0, count: 1 };
+  const centerBias = (poet.brightness - 1) * 0.045;
+  const orbitLayer = ((bandIndex.index % 3) - 1) * 0.045;
+  const angle = band.phase + bandIndex.index * GOLDEN_ANGLE + (hash01(poet.id, 'angle') - 0.5) * 0.38;
+  const latitude = band.latitude + (hash01(poet.id, 'latitude') - 0.5) * band.width;
+  const radius = band.radius + orbitLayer + centerBias + (hash01(poet.id, 'radius') - 0.5) * 0.07;
+  const flatten = Math.cos(latitude);
+
+  return new Vector3(
+    Math.cos(angle) * flatten * AXIS.x * radius,
+    Math.sin(latitude) * AXIS.y * (1.02 + (hash01(poet.id, 'height') - 0.5) * 0.045),
+    Math.sin(angle) * flatten * AXIS.z * radius
+  );
 }
 
 function colorOf(hex: string, intensity = 1) {
@@ -99,29 +162,30 @@ function createBackdropGeometry() {
 }
 
 function createStaticGlobeGeometry() {
-  const dynasties = Object.keys(dynastyColors) as Array<keyof typeof dynastyColors>;
-  return createSoftPointGeometry(7600, (i) => {
+  return createSoftPointGeometry(8600, (i) => {
+    const dynasty = DYNASTY_PARTICLE_SEQUENCE[i % DYNASTY_PARTICLE_SEQUENCE.length];
+    const band = DYNASTY_BANDS[dynasty];
     const u = (i * 0.61803398875) % 1;
-    const v = ((i * 0.754877666) % 1) * 2 - 1;
-    const theta = u * Math.PI * 2;
-    const band = Math.asin(v);
+    const jitterA = (i * 0.754877666) % 1;
+    const jitterB = (i * 0.318309886) % 1;
+    const theta = band.phase + u * Math.PI * 2 + Math.sin(i * 0.37) * 0.04;
+    const latitude = band.latitude + (jitterA - 0.5) * band.width * 1.28;
     const shellNoise = (i * 0.431) % 1;
-    const corePoint = i % 13 === 0;
-    const ringPoint = i % 17 === 0;
-    const shell = corePoint ? Math.pow(shellNoise, 0.46) * 0.5 : 0.58 + Math.pow(shellNoise, 0.54) * 0.44;
-    const arm = Math.sin(theta * 5.0 + shell * 5.4) * 0.06 + Math.sin(theta * 2.0 - band * 3.0) * 0.035;
-    const ringBias = ringPoint ? 0.05 * Math.sin(theta * 10.0) : 0;
-    const r = shell + arm + ringBias;
+    const corePoint = i % 23 === 0;
+    const ringPoint = i % 11 === 0;
+    const shell = corePoint ? 0.38 + Math.pow(shellNoise, 0.7) * 0.28 : 0.7 + Math.pow(shellNoise, 0.5) * 0.34;
+    const arm = Math.sin(theta * band.arms + shell * 7.0 + band.phase) * 0.035 + Math.sin(theta * 2.0 - latitude * 3.2) * 0.018;
+    const r = (shell + arm + (ringPoint ? Math.sin(theta * 10.0) * 0.018 : 0)) * band.radius;
+    const flatten = Math.cos(latitude);
     const position = new Vector3(
-      Math.cos(theta) * Math.cos(band) * AXIS.x * r,
-      Math.sin(band) * AXIS.y * r * (0.84 + Math.sin(theta * 3.0) * 0.035),
-      Math.sin(theta) * Math.cos(band) * AXIS.z * r
+      Math.cos(theta) * flatten * AXIS.x * r,
+      Math.sin(latitude) * AXIS.y * (0.98 + Math.sin(theta * 2.0) * 0.025),
+      Math.sin(theta) * flatten * AXIS.z * r
     );
 
-    const dynasty = dynasties[(i + Math.floor(theta * 2)) % dynasties.length];
-    const base = colorOf(dynastyColors[dynasty], corePoint ? 0.68 : 0.46 + shell * 0.34);
-    const color = base.lerp(WHITE, corePoint ? 0.58 : 0.16 + shellNoise * 0.18);
-    return { position, color, size: corePoint ? 0.66 : ringPoint ? 0.44 : 0.28 + shellNoise * 0.48 };
+    const base = colorOf(dynastyColors[dynasty], corePoint ? 0.76 : 0.45 + shell * 0.32);
+    const color = base.lerp(WHITE, corePoint ? 0.62 : 0.12 + jitterB * 0.22);
+    return { position, color, size: corePoint ? 0.72 : ringPoint ? 0.44 : 0.24 + shellNoise * 0.44 };
   });
 }
 
@@ -171,7 +235,32 @@ function BackdropStars() {
 
 function StaticGlobe() {
   const geometry = useMemo(createStaticGlobeGeometry, []);
-  return <SoftPoints geometry={geometry} opacity={0.86} scale={1.08} />;
+  return <SoftPoints geometry={geometry} opacity={0.84} scale={1.06} />;
+}
+
+function DynastyBandGuides() {
+  return (
+    <group>
+      {dynastyOrder.map((dynasty) => {
+        const band = DYNASTY_BANDS[dynasty];
+        const color = dynastyColors[dynasty];
+        const y = Math.sin(band.latitude) * AXIS.y;
+        const radiusX = Math.cos(band.latitude) * AXIS.x * band.radius;
+        const radiusZ = Math.cos(band.latitude) * AXIS.z * band.radius;
+        return (
+          <group key={dynasty} position={[0, y, 0]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]} scale={[radiusX, radiusZ, 1]}>
+              <torusGeometry args={[1, 0.0016, 8, 192]} />
+              <meshBasicMaterial color={color} transparent opacity={dynasty === '唐' || dynasty === '宋' ? 0.24 : 0.15} depthWrite={false} blending={AdditiveBlending} />
+            </mesh>
+            <Html distanceFactor={28} position={[radiusX + 2.4, 0, 0]} center>
+              <span className="dynasty-space-label" style={{ color, borderColor: color }}>{band.label}</span>
+            </Html>
+          </group>
+        );
+      })}
+    </group>
+  );
 }
 
 function GlobeAtmosphere() {
@@ -423,6 +512,7 @@ export function PoetryGlobeScene({ viewMode, selectedPoetId, selectedPoemId, onS
       <BackdropStars />
       <group>
         <GlobeAtmosphere />
+        <DynastyBandGuides />
         <StaticGlobe />
         <RelationshipLines />
         <PoetNodes selectedPoetId={selectedPoetId} onSelectPoet={onSelectPoet} onHoverName={onHoverName} />
