@@ -67,7 +67,6 @@ function poetSeed(poet: Poet) {
 
 export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
   const group = useRef<THREE.Group>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const progress = useRef(0);
   const lastPoet = useRef(poet.id);
   const accent = accentByDynasty[poet.dynasty] ?? '#d8fbff';
@@ -135,21 +134,18 @@ export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Po
   }, [mode, poet.id]);
 
   useFrame(({ clock }, delta) => {
-    const mat = materialRef.current ?? material;
-    if (!group.current || !mat) return;
+    if (!group.current) return;
     progress.current = Math.min(1, progress.current + delta * (mode === 'reading' ? 0.75 : 0.55));
     const reveal = progress.current * progress.current * (3 - 2 * progress.current);
     group.current.rotation.y = clock.elapsedTime * (visualQuality === 'performance' ? 0.025 : 0.055);
     group.current.rotation.x = Math.sin(clock.elapsedTime * 0.16) * 0.035;
-    mat.uniforms.uTime.value = clock.elapsedTime;
-    mat.uniforms.uReveal.value = reveal * (mode === 'network' ? 0.7 : 1);
+    material.uniforms.uTime.value = clock.elapsedTime;
+    material.uniforms.uReveal.value = reveal * (mode === 'network' ? 0.7 : 1);
   });
 
   return (
     <group ref={group} position={poet.position}>
-      <points geometry={geometry} frustumCulled={false}>
-        <primitive object={material} ref={materialRef} attach="material" />
-      </points>
+      <points geometry={geometry} material={material} frustumCulled={false} />
     </group>
   );
 }
