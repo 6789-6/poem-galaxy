@@ -76,13 +76,10 @@ const softPointFragmentShader = `
     vec2 uv = gl_PointCoord * 2.0 - 1.0;
     float r2 = dot(uv, uv);
     if (r2 > 1.0) discard;
-
     float body = exp(-r2 * 8.0);
     float core = exp(-r2 * 32.0) * 0.22;
     float alpha = (body * 0.72 + core) * uOpacity * vAlphaPulse;
-
     if (alpha < 0.01) discard;
-
     vec3 color = vColor * (0.7 + core * 0.45);
     gl_FragColor = vec4(color, alpha);
   }
@@ -172,7 +169,6 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
       const orbitSeed = Math.atan2(currentPosition.z - nextFocus.z, currentPosition.x - nextFocus.x) + (focusChanged ? 0.92 : 0.32);
       const finalOffset = cameraOffsetForMode(mode, orbitSeed + 0.38, mode === 'reading' ? 0.15 : 0.35);
       const finalPosition = nextFocus.clone().add(finalOffset);
-
       const outward = currentPosition.clone().sub(nextFocus);
       if (outward.lengthSq() < 1) outward.set(1, 0.2, 0.7);
       outward.normalize();
@@ -191,7 +187,6 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
       route.lookControl.copy(nextFocus).addScaledVector(side, lateral * 0.28).add(new THREE.Vector3(0, 9, 0));
       route.lookEnd.copy(nextFocus);
       route.roll = focusChanged ? (side.x > 0 ? 1 : -1) * 0.012 : 0.006;
-
       lastFocus.current = focusId;
       lastMode.current = mode;
     }
@@ -216,13 +211,11 @@ function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: Ga
         Math.sin(clock.current * 1.2) * 0.1,
         Math.cos(clock.current * 1.5) * 0.16
       ).multiplyScalar(midBoost);
-
       camera.position.copy(position).add(drift);
       perspectiveCamera.fov = THREE.MathUtils.lerp(69 + midBoost * 5, mode === 'reading' ? 41 : mode === 'network' ? 56 : 49, cinematicT);
       perspectiveCamera.updateProjectionMatrix();
       camera.lookAt(lookAt);
       camera.rotateZ(route.roll * midBoost);
-
       if (route.t >= 1) route.active = false;
       return;
     }
@@ -245,7 +238,6 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
     const positions = new Float32Array(preset.deepFieldCount * 3);
     const colors = new Float32Array(preset.deepFieldCount * 3);
     const sizes = new Float32Array(preset.deepFieldCount);
-
     for (let i = 0; i < preset.deepFieldCount; i += 1) {
       const radius = 210 + random() * 150;
       const theta = random() * Math.PI * 2;
@@ -259,7 +251,6 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
       colors[i * 3 + 2] = Math.min(1, tone * 1.28);
       sizes[i] = 0.34 + random() * 0.7;
     }
-
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -269,12 +260,10 @@ function DeepField({ visualQuality }: { visualQuality: VisualQuality }) {
   }, [preset.deepFieldCount]);
 
   const material = useMemo(() => createSoftPointMaterial(0.34, preset.deepFieldOpacity, 3.0, preset.nebula.pixelRatioCap), []);
-
   useEffect(() => {
     material.uniforms.uOpacity.value = preset.deepFieldOpacity;
     material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, preset.nebula.pixelRatioCap);
   }, [material, preset]);
-
   useFrame(() => {
     material.uniforms.uTime.value = 0;
   });
@@ -292,7 +281,6 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const baseColor = new THREE.Color(color);
-
     for (let i = 0; i < count; i += 1) {
       const radius = 3.5 + Math.pow(random(), 0.58) * (mode === 'reading' ? 16 : 9);
       const angle = random() * Math.PI * 2;
@@ -306,7 +294,6 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
       colors[i * 3 + 1] = Math.min(1, baseColor.g * glow + 0.12);
       colors[i * 3 + 2] = Math.min(1, baseColor.b * glow + 0.2);
     }
-
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -339,7 +326,6 @@ function PoemOrbitCloud({ poet, mode, visualQuality }: { poet: Poet; mode: Galax
 function FocusBeacon({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
   const group = useRef<THREE.Group>(null);
   const color = coolAccent(poet.dynasty);
-
   useFrame(({ clock }) => {
     if (!group.current) return;
     const speed = visualQuality === 'performance' ? 0.25 : 0.55;
@@ -394,7 +380,6 @@ function FloatingVerseConstellation({ selection, mode, visualQuality }: { select
 
 function PoetryCore({ visualQuality }: { visualQuality: VisualQuality }) {
   if (visualQuality === 'performance') return null;
-
   return (
     <group position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
       {[48, 72, 104].map((radius, index) => (
@@ -454,19 +439,46 @@ function PoetStar({ poet, selected, dimmed, visualQuality, onSelect }: { poet: P
 }
 
 function RelationshipNetwork({ activePoetId, mode }: { activePoetId?: string; mode: GalaxyMode }) {
+  const lineRef = useRef<THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>>(null);
+  const materialRef = useRef<THREE.LineBasicMaterial>(null);
+  const progress = useRef(0);
+  const pulse = useRef(0);
+  const visible = mode === 'network' || mode === 'reading';
   const lines = useMemo(() => buildRelationshipSegments(mode === 'network' ? undefined : activePoetId), [activePoetId, mode]);
+  const totalVertices = lines.positions.length / 3;
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(lines.positions, 3));
     g.setAttribute('color', new THREE.BufferAttribute(lines.colors, 3));
+    g.setDrawRange(0, 0);
     return g;
   }, [lines]);
 
-  if (mode !== 'network' && mode !== 'reading') return null;
+  useEffect(() => {
+    progress.current = visible ? 0 : 1;
+    pulse.current = 0;
+    geometry.setDrawRange(0, visible ? 0 : totalVertices);
+  }, [activePoetId, geometry, mode, totalVertices, visible]);
+
+  useFrame((_, delta) => {
+    if (!lineRef.current || !materialRef.current) return;
+    if (!visible) return;
+    const speed = mode === 'network' ? 0.48 : 0.28;
+    progress.current = Math.min(1, progress.current + delta * speed);
+    pulse.current += delta;
+    const reveal = smoothStep01(progress.current);
+    const drawVertices = Math.max(2, Math.floor(totalVertices * reveal));
+    geometry.setDrawRange(0, drawVertices);
+    const baseOpacity = mode === 'network' ? 0.58 : 0.22;
+    const breathing = 0.82 + Math.sin(pulse.current * 2.1) * 0.18;
+    materialRef.current.opacity = baseOpacity * (0.2 + reveal * 0.8) * breathing;
+  });
+
+  if (!visible) return null;
 
   return (
-    <lineSegments geometry={geometry} frustumCulled={false}>
-      <lineBasicMaterial vertexColors transparent opacity={mode === 'network' ? 0.58 : 0.22} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+    <lineSegments ref={lineRef} geometry={geometry} frustumCulled={false}>
+      <lineBasicMaterial ref={materialRef} vertexColors transparent opacity={0.01} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
     </lineSegments>
   );
 }
@@ -474,7 +486,6 @@ function RelationshipNetwork({ activePoetId, mode }: { activePoetId?: string; mo
 function NetworkAnchorLabels({ mode, visualQuality, onSelectPoet }: { mode: GalaxyMode; visualQuality: VisualQuality; onSelectPoet: (poet: Poet) => void }) {
   const labelledPoets = useMemo(() => [...poets].sort((a, b) => b.brightness - a.brightness).slice(0, visualQuality === 'performance' ? 6 : 12), [visualQuality]);
   if (mode !== 'network') return null;
-
   return (
     <group>
       {labelledPoets.map((poet) => (
@@ -560,7 +571,6 @@ function SceneContent({ mode, focusId, activeDynasties, filteredPoets, selection
 
 export default function GalaxyScene(props: SceneProps) {
   const preset = RENDER_PRESETS[props.visualQuality];
-
   return (
     <Canvas
       dpr={preset.dpr}
