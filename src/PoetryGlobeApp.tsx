@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import './data/installExpandedPoetry';
-import { poets, poems, type Poet, type Poem } from './data/expandedPoetry';
+import { dynastyColors, dynastyOrder, poets, poems, type Poet, type Poem } from './data/expandedPoetry';
 import { PoetryGlobeScene } from './PoetryGlobeScene';
 
 type ViewMode = 'overview' | 'poet' | 'poem';
@@ -29,6 +29,14 @@ export function PoetryGlobeApp() {
     [selectedPoetId]
   );
   const dynastyCount = useMemo(() => new Set(poets.map((poet) => poet.dynasty)).size, []);
+  const dynastyStats = useMemo(
+    () => dynastyOrder.map((dynasty) => ({
+      dynasty,
+      color: dynastyColors[dynasty],
+      count: poets.filter((poet) => poet.dynasty === dynasty).length
+    })),
+    []
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -121,7 +129,7 @@ export function PoetryGlobeApp() {
           <div className="stats">
             <span>{poets.length.toLocaleString()} 位诗人节点</span>
             <span>{poems.length.toLocaleString()} 个诗作入口</span>
-            <span>{dynastyCount} 个时代星带</span>
+            <span>{dynastyCount} 条朝代星带</span>
             <span>H 隐藏界面</span>
           </div>
         </section>
@@ -131,11 +139,22 @@ export function PoetryGlobeApp() {
         <section className="globe-hud globe-panel">
           <p className="eyebrow">LAYER</p>
           <h2>
-            {viewMode === 'overview' && '总览：诗歌星体'}
+            {viewMode === 'overview' && '总览：朝代星带'}
             {viewMode === 'poet' && selectedPoet?.name}
             {viewMode === 'poem' && selectedPoem?.title}
           </h2>
-          {viewMode === 'overview' && <p>拖动旋转，滚轮缩放，点击任意光点进入诗人星域。当前已扩展为多时代诗人星图。</p>}
+          {viewMode === 'overview' && (
+            <>
+              <p>拖动旋转，滚轮缩放，点击光点进入诗人星域。诗人现在按时代分布在不同纬度星带上，唐宋星带密度最高。</p>
+              <div className="tag-row">
+                {dynastyStats.map((item) => (
+                  <span key={item.dynasty} style={{ borderColor: item.color, color: item.color }}>
+                    {item.dynasty} · {item.count}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
           {viewMode === 'poet' && selectedPoet && (
             <>
               <p>{selectedPoet.dynasty} · {selectedPoet.years}</p>
