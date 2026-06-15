@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { poets, poems, type Poet, type Poem } from './data/poetry';
+import { poets, poems, type Poet, type Poem } from './data/expandedPoetry';
 import { PoetryGlobeScene } from './PoetryGlobeScene';
 
 type ViewMode = 'overview' | 'poet' | 'poem';
@@ -27,6 +27,7 @@ export function PoetryGlobeApp() {
     () => poems.filter((poem) => poem.poetId === selectedPoetId),
     [selectedPoetId]
   );
+  const dynastyCount = useMemo(() => new Set(poets.map((poet) => poet.dynasty)).size, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -117,8 +118,9 @@ export function PoetryGlobeApp() {
             <h1>诗云</h1>
           </div>
           <div className="stats">
-            <span>32,657 诗人</span>
-            <span>933,857 诗作</span>
+            <span>{poets.length.toLocaleString()} 位诗人节点</span>
+            <span>{poems.length.toLocaleString()} 个诗作入口</span>
+            <span>{dynastyCount} 个时代星带</span>
             <span>H 隐藏界面</span>
           </div>
         </section>
@@ -132,7 +134,7 @@ export function PoetryGlobeApp() {
             {viewMode === 'poet' && selectedPoet?.name}
             {viewMode === 'poem' && selectedPoem?.title}
           </h2>
-          {viewMode === 'overview' && <p>拖动旋转，滚轮缩放，点击任意光点进入诗人星域。整体保持稳定，只有交互时发生运动。</p>}
+          {viewMode === 'overview' && <p>拖动旋转，滚轮缩放，点击任意光点进入诗人星域。当前已扩展为多时代诗人星图。</p>}
           {viewMode === 'poet' && selectedPoet && (
             <>
               <p>{selectedPoet.dynasty} · {selectedPoet.years}</p>
@@ -164,7 +166,7 @@ export function PoetryGlobeApp() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
-              placeholder="搜索：李白 / 静夜思 / 月"
+              placeholder="搜索：李白 / 陆游 / 曹操 / 月"
             />
             <button onClick={handleSearch}>定位</button>
           </div>
