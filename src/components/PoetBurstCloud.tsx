@@ -135,18 +135,19 @@ export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Po
   }, [mode, poet.id]);
 
   useFrame(({ clock }, delta) => {
-    if (!group.current || !materialRef.current) return;
+    const mat = materialRef.current ?? material;
+    if (!group.current || !mat) return;
     progress.current = Math.min(1, progress.current + delta * (mode === 'reading' ? 0.75 : 0.55));
     const reveal = progress.current * progress.current * (3 - 2 * progress.current);
     group.current.rotation.y = clock.elapsedTime * (visualQuality === 'performance' ? 0.025 : 0.055);
     group.current.rotation.x = Math.sin(clock.elapsedTime * 0.16) * 0.035;
-    materialRef.current.uniforms.uTime.value = clock.elapsedTime;
-    materialRef.current.uniforms.uReveal.value = reveal * (mode === 'network' ? 0.7 : 1);
+    mat.uniforms.uTime.value = clock.elapsedTime;
+    mat.uniforms.uReveal.value = reveal * (mode === 'network' ? 0.7 : 1);
   });
 
   return (
     <group ref={group} position={poet.position}>
-      <points geometry={geometry} material={material} frustumCulled={false}>
+      <points geometry={geometry} frustumCulled={false}>
         <primitive object={material} ref={materialRef} attach="material" />
       </points>
     </group>
