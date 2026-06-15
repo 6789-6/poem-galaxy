@@ -1,7 +1,7 @@
 import { Html, OrbitControls } from '@react-three/drei';
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber';
-import { useMemo, useRef, useState } from 'react';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, Group, MathUtils, Points, Vector3 } from 'three';
+import { useEffect, useMemo, useRef } from 'react';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, Vector3 } from 'three';
 import { dynastyColors, poets, poems, type Poet, type Poem } from './data/poetry';
 
 type ViewMode = 'overview' | 'poet' | 'poem';
@@ -95,16 +95,10 @@ function StaticGlobe() {
 
 function GlobeGuide() {
   return (
-    <group>
-      <mesh rotation={[0, 0, 0]}>
-        <sphereGeometry args={[1, 48, 24]} />
-        <meshBasicMaterial color="#557f94" wireframe transparent opacity={0.035} depthWrite={false} />
-      </mesh>
-      <mesh scale={[AXIS.x, AXIS.y, AXIS.z]}>
-        <sphereGeometry args={[1, 48, 24]} />
-        <meshBasicMaterial color="#8ad8ff" wireframe transparent opacity={0.045} depthWrite={false} />
-      </mesh>
-    </group>
+    <mesh scale={[AXIS.x, AXIS.y, AXIS.z]}>
+      <sphereGeometry args={[1, 48, 24]} />
+      <meshBasicMaterial color="#8ad8ff" wireframe transparent opacity={0.045} depthWrite={false} />
+    </mesh>
   );
 }
 
@@ -186,18 +180,11 @@ function RelationshipLines() {
 }
 
 function PoemCluster({ poet, selectedPoemId, onSelectPoem, onHoverName }: { poet: Poet; selectedPoemId: string | null; onSelectPoem: (poem: Poem) => void; onHoverName: (name: string | null) => void }) {
-  const groupRef = useRef<Group>(null);
   const geometry = useMemo(() => createPoemClusterGeometry(poet), [poet]);
   const poetPoems = useMemo(() => poems.filter((poem) => poem.poetId === poet.id), [poet]);
 
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = MathUtils.lerp(groupRef.current.rotation.y, 0.18, 0.025);
-    }
-  });
-
   return (
-    <group ref={groupRef} position={poetPosition(poet)}>
+    <group position={poetPosition(poet)} rotation={[0, 0.18, 0]}>
       <points geometry={geometry}>
         <pointsMaterial size={0.16} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} />
       </points>
@@ -237,24 +224,49 @@ function PoemCluster({ poet, selectedPoemId, onSelectPoem, onHoverName }: { poet
   );
 }
 
+type CameraTransition = {
+  active: boolean;
+  startedAt: number;
+  duration: number;
+  fromPosition: Vector3;
+  toPosition: Vector3;
+  fromTarget: Vector3;
+  toTarget: Vector3;
+};
+
 function FocusRig({ viewMode, selectedPoetId }: { viewMode: ViewMode; selectedPoetId: string | null }) {
   const { camera } = useThree();
   const controlsRef = useRef<any>(null);
+  const transitionRef = useRef<CameraTransition | null>(null);
   const selectedPoet = poets.find((poet) => poet.id === selectedPoetId) ?? null;
 
-  useFrame(() => {
+  useEffect(() => {
     const target = selectedPoet ? poetPosition(selectedPoet) : new Vector3(0, 0, 0);
-    const direction = target.clone().normalize();
-    const cameraTarget = selectedPoet
-      ? target.clone().add(direction.multiplyScalar(viewMode === 'poem' ? 12 : 22)).add(new Vector3(0, 5.5, 10))
+    const direction = target.lengthSq() > 0.001 ? target.clone().normalize() : new Vector3(0, 0, 1);
+    const toPosition = selectedPoet
+      ? target.clone().add(direction.multiplyScalar(viewMode === 'poem' ? 13 : 22)).add(new Vector3(0, 5.5, 10))
       : new Vector3(0, 0, 92);
 
-    camera.position.lerp(cameraTarget, 0.055);
-    camera.lookAt(target);
-    if (controlsRef.current) {
-      controlsRef.current.target.lerp(target, 0.075);
-      controlsRef.current.update();
-    }
+    transitionRef.current = {
+      active: true,
+      startedAt: performance.now(),
+      duration: selectedPoet ? 950 : 780,
+      fromPosition: camera.position.clone(),
+      toPosition,
+      fromTarget: controlsRef.current?.target?.clone?.() ?? new Vector3(0, 0, 0),
+      toTarget: target
+    };
+  }, [camera, selectedPoetId, viewMode]);
+
+  useFrame(() => {
+    const transition = transitionRef.current;
+    if (!transition?.active || !controlsRef.current) return;
+    const raw = Math.min(1, (performance.now() - transition.startedAt) / transition.duration);
+    const eased = raw * raw * (3 - 2 * raw);
+    camera.position.lerpVectors(transition.fromPosition, transition.toPosition, eased);
+    controlsRef.current.target.lerpVectors(transition.fromTarget, transition.toTarget, eased);
+    controlsRef.current.update();
+    if (raw >= 1) transition.active = false;
   });
 
   return <OrbitControls ref={controlsRef} enableDamping dampingFactor={0.08} rotateSpeed={0.52} zoomSpeed={0.65} panSpeed={0.25} minDistance={10} maxDistance={130} />;
@@ -271,7 +283,7 @@ export function PoetryGlobeScene({ viewMode, selectedPoetId, selectedPoemId, onS
       <pointLight position={[0, 0, 45]} intensity={22} color="#aeeeff" />
       <pointLight position={[-35, 24, 20]} intensity={8} color="#ff8ae6" />
 
-      <group rotation={[0.12, -0.22, 0.02]}>
+      <group>
         <GlobeGuide />
         <StaticGlobe />
         <RelationshipLines />
