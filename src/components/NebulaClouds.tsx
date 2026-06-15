@@ -14,10 +14,10 @@ const nebulaVertex = `
 
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float depthScale = 190.0 / max(42.0, -mvPosition.z);
+    float depthScale = 210.0 / max(44.0, -mvPosition.z);
     vColor = color;
-    vDepthFade = clamp((-mvPosition.z - 20.0) / 260.0, 0.18, 1.0);
-    gl_PointSize = clamp(size * uBaseSize * depthScale * uPixelRatio * uLayerDepth, 0.42, uMaxSize);
+    vDepthFade = clamp((-mvPosition.z - 18.0) / 290.0, 0.16, 1.0);
+    gl_PointSize = clamp(size * uBaseSize * depthScale * uPixelRatio * uLayerDepth, 0.35, uMaxSize);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -32,13 +32,14 @@ const nebulaFragment = `
     float r2 = dot(uv, uv);
     if (r2 > 1.0) discard;
 
-    float body = exp(-r2 * 6.8);
-    float core = exp(-r2 * 38.0) * 0.12;
-    float alpha = (body * 0.74 + core) * uOpacity * vDepthFade;
+    float mist = exp(-r2 * 5.2);
+    float core = exp(-r2 * 34.0) * 0.16;
+    float rim = smoothstep(1.0, 0.38, r2) * 0.08;
+    float alpha = (mist * 0.68 + core + rim) * uOpacity * vDepthFade;
 
-    if (alpha < 0.005) discard;
+    if (alpha < 0.004) discard;
 
-    vec3 color = vColor * (0.72 + core * 0.35);
+    vec3 color = vColor * (0.78 + core * 0.46);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -50,7 +51,7 @@ const streakVertex = `
   void main() {
     vColor = color;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    vAlpha = clamp((-mvPosition.z - 8.0) / 190.0, 0.2, 1.0);
+    vAlpha = clamp((-mvPosition.z - 6.0) / 210.0, 0.18, 1.0);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -66,9 +67,10 @@ const streakFragment = `
 `;
 
 const palettes = {
-  far: ['#0a2a62', '#123f86', '#25327b', '#071b38', '#3e4ea8'],
-  main: ['#37f4ff', '#61ffd9', '#8f7cff', '#cf7dff', '#e5fbff', '#7da7ff'],
-  near: ['#dffcff', '#9ffbff', '#b49cff', '#63ffd2', '#ffffff']
+  far: ['#071a4f', '#102c74', '#182466', '#06152f', '#253d99'],
+  main: ['#30f2ff', '#5dffe0', '#8392ff', '#bb80ff', '#eafbff', '#78dcff'],
+  core: ['#eafbff', '#bffcff', '#74fff0', '#a78cff', '#ffffff'],
+  near: ['#f2ffff', '#a8fbff', '#bba5ff', '#64ffd7', '#ffffff']
 };
 
 function mulberry32(seed: number) {
@@ -102,6 +104,9 @@ type CloudProfile = {
   brightness: number;
   sizeMin: number;
   sizeMax: number;
+  coreBias: number;
+  haloBias: number;
+  banding: number;
 };
 
 function createCloudGeometry(profile: CloudProfile) {
@@ -111,28 +116,40 @@ function createCloudGeometry(profile: CloudProfile) {
   const sizes = new Float32Array(profile.count);
 
   for (let i = 0; i < profile.count; i += 1) {
+    const core = random() < profile.coreBias;
+    const halo = random() > 1 - profile.haloBias;
     const arm = Math.floor(random() * profile.armCount);
-    const radius = Math.pow(random(), profile.radiusPower) * profile.radius;
-    const angle = random() * Math.PI * 2 + radius * profile.armTwist + arm * ((Math.PI * 2) / profile.armCount);
-    const localScatter = profile.scatter + radius * 0.052;
+    const baseRadius = core
+      ? Math.pow(random(), 1.75) * profile.radius * 0.32
+      : halo
+        ? profile.radius * (0.64 + Math.pow(random(), 0.72) * 0.62)
+        : Math.pow(random(), profile.radiusPower) * profile.radius;
 
-    const x = Math.cos(angle) * radius * profile.xScale + gaussian(random) * localScatter;
-    const y = Math.sin(angle * 1.8) * profile.yScale + gaussian(random) * (profile.verticalScatter + radius * 0.026);
-    const z = Math.sin(angle) * radius * profile.zScale + gaussian(random) * (localScatter * 1.25);
+    const armPhase = arm * ((Math.PI * 2) / profile.armCount);
+    const band = (arm - (profile.armCount - 1) / 2) * profile.banding;
+    const angle = armPhase + baseRadius * profile.armTwist + gaussian(random) * (core ? 0.48 : 0.13) + random() * 0.38;
+    const ribbonWidth = core ? profile.scatter * 1.6 : profile.scatter + baseRadius * 0.035;
+    const ribbonNoise = gaussian(random) * ribbonWidth;
+    const shell = halo ? 1.25 : 1;
+
+    const x = Math.cos(angle) * baseRadius * profile.xScale * shell + Math.cos(angle + Math.PI * 0.5) * ribbonNoise + band;
+    const y = Math.sin(angle * 2.18) * profile.yScale + gaussian(random) * (profile.verticalScatter + baseRadius * 0.018) + (core ? gaussian(random) * 2.8 : 0);
+    const z = Math.sin(angle) * baseRadius * profile.zScale * (halo ? 1.18 : 1) + gaussian(random) * (ribbonWidth * 1.18 + (core ? 4 : 0));
 
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
 
     const color = new THREE.Color(profile.palette[Math.floor(random() * profile.palette.length)]);
-    const darkSpace = new THREE.Color(random() > 0.48 ? '#02081f' : '#031321');
-    color.lerp(darkSpace, 0.12 + random() * 0.18);
-    const luminance = profile.brightness * (0.45 + Math.pow(random(), 0.55) * 0.72);
-    colors[i * 3] = Math.min(1, color.r * luminance);
-    colors[i * 3 + 1] = Math.min(1, color.g * luminance);
-    colors[i * 3 + 2] = Math.min(1, color.b * (luminance + 0.08));
+    const darkSpace = new THREE.Color(random() > 0.48 ? '#020817' : '#031426');
+    color.lerp(darkSpace, core ? 0.03 + random() * 0.08 : 0.1 + random() * 0.18);
+    const density = core ? 1.22 : halo ? 0.55 : 0.72;
+    const luminance = profile.brightness * density * (0.4 + Math.pow(random(), 0.52) * 0.78);
+    colors[i * 3] = Math.min(1, color.r * luminance * 0.9);
+    colors[i * 3 + 1] = Math.min(1, color.g * luminance * 1.03);
+    colors[i * 3 + 2] = Math.min(1, color.b * (luminance + 0.1));
 
-    sizes[i] = profile.sizeMin + Math.pow(random(), 2.4) * profile.sizeMax;
+    sizes[i] = profile.sizeMin + Math.pow(random(), 2.25) * profile.sizeMax + (core ? random() * profile.sizeMax * 0.38 : 0);
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -173,9 +190,10 @@ type LayerProps = {
   parallax: number;
   scale: [number, number, number];
   position: [number, number, number];
+  rotation?: [number, number, number];
 };
 
-function NebulaLayer({ geometry, baseSize, maxSize, opacity, pixelRatioCap, layerDepth, parallax, scale, position }: LayerProps) {
+function NebulaLayer({ geometry, baseSize, maxSize, opacity, pixelRatioCap, layerDepth, parallax, scale, position, rotation = [0, 0, 0] }: LayerProps) {
   const group = useRef<THREE.Group>(null);
   const { camera } = useThree();
   const material = useMemo(() => createPointMaterial(baseSize, opacity, maxSize, pixelRatioCap, layerDepth), [baseSize, opacity, maxSize, pixelRatioCap, layerDepth]);
@@ -191,12 +209,12 @@ function NebulaLayer({ geometry, baseSize, maxSize, opacity, pixelRatioCap, laye
   useFrame(() => {
     if (!group.current) return;
     group.current.position.x = position[0] - camera.position.x * parallax;
-    group.current.position.y = position[1] - camera.position.y * parallax * 0.2;
-    group.current.position.z = position[2] - camera.position.z * parallax * 0.38;
+    group.current.position.y = position[1] - camera.position.y * parallax * 0.22;
+    group.current.position.z = position[2] - camera.position.z * parallax * 0.42;
   });
 
   return (
-    <group ref={group} scale={scale} position={position}>
+    <group ref={group} scale={scale} position={position} rotation={rotation}>
       <points geometry={geometry} material={material} frustumCulled={false} />
     </group>
   );
@@ -208,15 +226,15 @@ function createStreakGeometry(count: number) {
   const colors = new Float32Array(count * 2 * 3);
 
   for (let i = 0; i < count; i += 1) {
-    const radius = 36 + random() * 128;
+    const radius = 34 + random() * 140;
     const theta = random() * Math.PI * 2;
-    const z = -150 + random() * 300;
-    const x = Math.cos(theta) * radius * (0.8 + random() * 0.8);
-    const y = (random() - 0.5) * 82;
-    const len = 1.6 + Math.pow(random(), 2.2) * 9.5;
+    const z = -170 + random() * 330;
+    const x = Math.cos(theta) * radius * (0.78 + random() * 0.88);
+    const y = (random() - 0.5) * 86;
+    const len = 1.8 + Math.pow(random(), 2.1) * 12.5;
     const dx = (0.8 + random() * 0.5) * len;
-    const dy = (0.2 + random() * 0.32) * len;
-    const dz = (1.4 + random()) * len;
+    const dy = (0.18 + random() * 0.32) * len;
+    const dz = (1.6 + random()) * len;
 
     const base = i * 6;
     positions[base] = x;
@@ -226,11 +244,11 @@ function createStreakGeometry(count: number) {
     positions[base + 4] = y + dy;
     positions[base + 5] = z + dz;
 
-    const color = new THREE.Color(random() > 0.6 ? '#dffcff' : random() > 0.4 ? '#8ffaff' : '#9a86ff');
-    const fade = 0.38 + random() * 0.4;
-    colors[base] = color.r * 0.08;
-    colors[base + 1] = color.g * 0.08;
-    colors[base + 2] = color.b * 0.08;
+    const color = new THREE.Color(random() > 0.58 ? '#e9ffff' : random() > 0.38 ? '#8ffaff' : '#a08dff');
+    const fade = 0.36 + random() * 0.44;
+    colors[base] = color.r * 0.06;
+    colors[base + 1] = color.g * 0.06;
+    colors[base + 2] = color.b * 0.06;
     colors[base + 3] = color.r * fade;
     colors[base + 4] = color.g * fade;
     colors[base + 5] = color.b * fade;
@@ -246,10 +264,10 @@ function createStreakGeometry(count: number) {
 function ForegroundStreaks({ visualQuality }: { visualQuality: VisualQuality }) {
   const group = useRef<THREE.Group>(null);
   const { camera } = useThree();
-  const count = visualQuality === 'performance' ? 420 : visualQuality === 'balanced' ? 900 : 1600;
+  const count = visualQuality === 'performance' ? 480 : visualQuality === 'balanced' ? 1100 : 2200;
   const geometry = useMemo(() => createStreakGeometry(count), [count]);
   const material = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: { uOpacity: { value: visualQuality === 'performance' ? 0.045 : visualQuality === 'balanced' ? 0.075 : 0.11 } },
+    uniforms: { uOpacity: { value: visualQuality === 'performance' ? 0.045 : visualQuality === 'balanced' ? 0.08 : 0.13 } },
     vertexShader: streakVertex,
     fragmentShader: streakFragment,
     vertexColors: true,
@@ -261,9 +279,9 @@ function ForegroundStreaks({ visualQuality }: { visualQuality: VisualQuality }) 
 
   useFrame(() => {
     if (!group.current) return;
-    group.current.position.x = camera.position.x * 0.18;
-    group.current.position.y = camera.position.y * 0.05;
-    group.current.position.z = camera.position.z * 0.12;
+    group.current.position.x = camera.position.x * 0.2;
+    group.current.position.y = camera.position.y * 0.055;
+    group.current.position.z = camera.position.z * 0.14;
     group.current.rotation.y = camera.rotation.y * 0.08;
   });
 
@@ -277,98 +295,144 @@ function ForegroundStreaks({ visualQuality }: { visualQuality: VisualQuality }) 
 export default memo(function NebulaClouds({ visualQuality }: { visualQuality: VisualQuality }) {
   const preset = RENDER_PRESETS[visualQuality];
   const nebulaCount = preset.nebulaCount;
-  const farCount = Math.max(12000, Math.floor(nebulaCount * 0.34));
-  const mainCount = Math.max(22000, Math.floor(nebulaCount * 0.48));
-  const nearCount = Math.max(6000, Math.floor(nebulaCount * 0.18));
+  const farCount = Math.max(12000, Math.floor(nebulaCount * 0.28));
+  const mainCount = Math.max(26000, Math.floor(nebulaCount * 0.42));
+  const coreCount = Math.max(16000, Math.floor(nebulaCount * 0.18));
+  const nearCount = Math.max(7000, Math.floor(nebulaCount * 0.12));
 
   const far = useMemo(() => createCloudGeometry({
     seed: 14001,
     count: farCount,
-    radius: 170,
-    radiusPower: 0.5,
-    xScale: 1.35,
-    yScale: 18,
-    zScale: 0.58,
-    armTwist: 0.014,
-    armCount: 9,
-    scatter: 18,
-    verticalScatter: 11,
+    radius: 210,
+    radiusPower: 0.48,
+    xScale: 1.52,
+    yScale: 16,
+    zScale: 0.54,
+    armTwist: 0.011,
+    armCount: 10,
+    scatter: 22,
+    verticalScatter: 12,
     palette: palettes.far,
-    brightness: 0.82,
-    sizeMin: 0.12,
-    sizeMax: 0.72
+    brightness: 0.68,
+    sizeMin: 0.1,
+    sizeMax: 0.62,
+    coreBias: 0.04,
+    haloBias: 0.48,
+    banding: 7.5
   }), [farCount]);
 
   const main = useMemo(() => createCloudGeometry({
     seed: 260614,
     count: mainCount,
-    radius: 118,
-    radiusPower: 0.58,
-    xScale: 1.26,
-    yScale: 12,
-    zScale: 0.74,
-    armTwist: 0.032,
-    armCount: 6,
-    scatter: 9,
-    verticalScatter: 6,
+    radius: 136,
+    radiusPower: 0.62,
+    xScale: 1.62,
+    yScale: 11,
+    zScale: 0.72,
+    armTwist: 0.036,
+    armCount: 5,
+    scatter: 7.8,
+    verticalScatter: 4.8,
     palette: palettes.main,
-    brightness: 1.06,
-    sizeMin: 0.08,
-    sizeMax: 0.94
+    brightness: 1.02,
+    sizeMin: 0.07,
+    sizeMax: 0.86,
+    coreBias: 0.18,
+    haloBias: 0.18,
+    banding: 4.5
   }), [mainCount]);
+
+  const core = useMemo(() => createCloudGeometry({
+    seed: 32657,
+    count: coreCount,
+    radius: 74,
+    radiusPower: 1.25,
+    xScale: 1.34,
+    yScale: 7.5,
+    zScale: 0.68,
+    armTwist: 0.058,
+    armCount: 4,
+    scatter: 5.2,
+    verticalScatter: 3.8,
+    palette: palettes.core,
+    brightness: 1.26,
+    sizeMin: 0.07,
+    sizeMax: 1.1,
+    coreBias: 0.54,
+    haloBias: 0.08,
+    banding: 2.2
+  }), [coreCount]);
 
   const near = useMemo(() => createCloudGeometry({
     seed: 52077,
     count: nearCount,
-    radius: 86,
-    radiusPower: 0.42,
-    xScale: 1.18,
-    yScale: 16,
-    zScale: 1.05,
-    armTwist: 0.052,
+    radius: 112,
+    radiusPower: 0.44,
+    xScale: 1.38,
+    yScale: 17,
+    zScale: 1.06,
+    armTwist: 0.048,
     armCount: 5,
     scatter: 12,
     verticalScatter: 10,
     palette: palettes.near,
-    brightness: 0.98,
-    sizeMin: 0.09,
-    sizeMax: 1.28
+    brightness: 0.96,
+    sizeMin: 0.08,
+    sizeMax: 1.28,
+    coreBias: 0.1,
+    haloBias: 0.22,
+    banding: 3.4
   }), [nearCount]);
 
   return (
     <group>
       <NebulaLayer
         geometry={far}
-        baseSize={preset.nebula.baseSize * 0.7}
-        maxSize={preset.nebula.maxSize * 0.72}
-        opacity={preset.nebula.opacity * 0.78}
+        baseSize={preset.nebula.baseSize * 0.66}
+        maxSize={preset.nebula.maxSize * 0.66}
+        opacity={preset.nebula.opacity * 0.72}
         pixelRatioCap={preset.nebula.pixelRatioCap}
-        layerDepth={0.78}
-        parallax={0.012}
-        scale={[1.25, 0.92, 1.1]}
-        position={[0, 0, -66]}
+        layerDepth={0.72}
+        parallax={0.01}
+        scale={[1.12, 0.88, 1.05]}
+        position={[0, 0, -86]}
+        rotation={[0.02, -0.06, -0.04]}
       />
       <NebulaLayer
         geometry={main}
         baseSize={preset.nebula.baseSize * 1.02}
-        maxSize={preset.nebula.maxSize}
-        opacity={preset.nebula.opacity * 1.08}
+        maxSize={preset.nebula.maxSize * 0.96}
+        opacity={preset.nebula.opacity * 1.02}
         pixelRatioCap={preset.nebula.pixelRatioCap}
         layerDepth={1}
-        parallax={0.036}
-        scale={[1.0, 1.0, 1.0]}
-        position={[0, 0, -8]}
+        parallax={0.034}
+        scale={[1.03, 1.0, 1.0]}
+        position={[0, 0, -10]}
+        rotation={[0.04, -0.12, -0.08]}
+      />
+      <NebulaLayer
+        geometry={core}
+        baseSize={preset.nebula.baseSize * 1.28}
+        maxSize={preset.nebula.maxSize * 1.08}
+        opacity={preset.nebula.opacity * 1.18}
+        pixelRatioCap={preset.nebula.pixelRatioCap}
+        layerDepth={1.08}
+        parallax={0.048}
+        scale={[0.9, 0.92, 0.95]}
+        position={[0, 0, 8]}
+        rotation={[0.02, -0.15, -0.08]}
       />
       <NebulaLayer
         geometry={near}
-        baseSize={preset.nebula.baseSize * 1.42}
-        maxSize={preset.nebula.maxSize * 1.28}
-        opacity={preset.nebula.opacity * 0.74}
+        baseSize={preset.nebula.baseSize * 1.44}
+        maxSize={preset.nebula.maxSize * 1.24}
+        opacity={preset.nebula.opacity * 0.68}
         pixelRatioCap={preset.nebula.pixelRatioCap}
-        layerDepth={1.2}
-        parallax={0.08}
-        scale={[1.0, 1.08, 1.24]}
-        position={[0, 1, 46]}
+        layerDepth={1.22}
+        parallax={0.088}
+        scale={[1.05, 1.08, 1.28]}
+        position={[0, 2, 54]}
+        rotation={[0.08, -0.2, -0.06]}
       />
       <ForegroundStreaks visualQuality={visualQuality} />
     </group>
