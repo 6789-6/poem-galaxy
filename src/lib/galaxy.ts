@@ -40,11 +40,6 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-function colorToRgb(hex: string) {
-  const color = new Color(hex);
-  return [color.r, color.g, color.b] as const;
-}
-
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
@@ -75,32 +70,36 @@ export function generateGalaxyBuffers(count = 150000): GalaxyBuffers {
     dynastyIndex[i] = dynastySlot;
 
     const poet = poets[Math.floor(random() * poets.length)];
-    const dynastyCenter = -52 + dynastySlot * 22;
-    const arm = Math.floor(random() * 6);
-    const radius = 8 + Math.pow(random(), 0.62) * (42 + dynastySlot * 3.5);
-    const angle = random() * Math.PI * 2 + radius * 0.062 + arm * ((Math.PI * 2) / 6) + dynastySlot * 0.28;
-    const diskNoise = gaussian(random) * (2.2 + radius * 0.04);
-    const verticalNoise = gaussian(random) * (1.8 + radius * 0.07);
+    const dynastyCenter = -54 + dynastySlot * 21.5;
+    const depthBand = random();
+    const isForeground = depthBand > 0.86;
+    const isFarBackground = depthBand < 0.22;
+    const arm = Math.floor(random() * 7);
+    const radius = 7 + Math.pow(random(), 0.55) * (46 + dynastySlot * 4.8);
+    const angle = random() * Math.PI * 2 + radius * 0.074 + arm * ((Math.PI * 2) / 7) + dynastySlot * 0.34;
+    const diskNoise = gaussian(random) * (2.6 + radius * 0.062);
+    const verticalNoise = gaussian(random) * (2.6 + radius * 0.092);
+    const depthThrow = isForeground ? 78 + random() * 86 : isFarBackground ? -118 - random() * 98 : gaussian(random) * 26;
 
-    let x = dynastyCenter + Math.cos(angle) * radius * 1.08 + diskNoise;
-    let y = Math.sin(angle * 2.2 + dynastySlot) * 2.2 + verticalNoise;
-    let z = Math.sin(angle) * radius * 0.88 + gaussian(random) * (3.2 + radius * 0.05);
+    let x = dynastyCenter + Math.cos(angle) * radius * 1.18 + diskNoise;
+    let y = Math.sin(angle * 2.16 + dynastySlot) * 3.2 + verticalNoise;
+    let z = Math.sin(angle) * radius * 1.18 + gaussian(random) * (4.8 + radius * 0.12) + depthThrow;
 
     const isPoetHalo = random() < 0.42;
     if (isPoetHalo) {
-      const t = 0.32 + random() * 0.48;
-      const cluster = 2.6 + (1.8 - poet.brightness) * 3.2 + random() * 4.2;
+      const t = 0.24 + random() * 0.56;
+      const cluster = 2.5 + (1.8 - poet.brightness) * 3.2 + random() * 4.8;
       x = lerp(x, poet.position[0], t) + gaussian(random) * cluster;
-      y = lerp(y, poet.position[1], t) + gaussian(random) * cluster * 0.72;
-      z = lerp(z, poet.position[2], t) + gaussian(random) * cluster;
+      y = lerp(y, poet.position[1], t) + gaussian(random) * cluster * 0.92;
+      z = lerp(z, poet.position[2], t) + gaussian(random) * cluster * 1.35 + (isForeground ? random() * 22 : isFarBackground ? -random() * 34 : 0);
     }
 
-    const isCoreDust = random() < 0.12;
+    const isCoreDust = random() < 0.1;
     if (isCoreDust) {
-      const coreT = random() * 0.36;
-      x = lerp(x, dynastyCenter, coreT) + gaussian(random) * 5.4;
-      y = lerp(y, 0, coreT) + gaussian(random) * 2.8;
-      z = lerp(z, 0, coreT) + gaussian(random) * 5.4;
+      const coreT = random() * 0.3;
+      x = lerp(x, dynastyCenter, coreT) + gaussian(random) * 6.4;
+      y = lerp(y, 0, coreT) + gaussian(random) * 3.6;
+      z = lerp(z, 0, coreT) + gaussian(random) * 10.5;
     }
 
     positions[i * 3] = x;
@@ -108,13 +107,14 @@ export function generateGalaxyBuffers(count = 150000): GalaxyBuffers {
     positions[i * 3 + 2] = z;
 
     const c = coldStarColor(dynastySlot, random);
-    const hotCore = isPoetHalo ? 0.08 + random() * 0.14 : 0.02 + random() * 0.06;
-    const brightness = 0.38 + Math.pow(random(), 0.45) * 0.62;
-    colors[i * 3] = clamp01(c.r * brightness + hotCore * 0.55 + random() * 0.02);
-    colors[i * 3 + 1] = clamp01(c.g * brightness + hotCore * 0.72 + random() * 0.025);
-    colors[i * 3 + 2] = clamp01(c.b * brightness + hotCore * 1.1 + random() * 0.035);
+    const hotCore = isPoetHalo ? 0.09 + random() * 0.15 : 0.02 + random() * 0.06;
+    const depthBrightness = isForeground ? 1.16 : isFarBackground ? 0.64 : 0.88;
+    const brightness = (0.34 + Math.pow(random(), 0.45) * 0.64) * depthBrightness;
+    colors[i * 3] = clamp01(c.r * brightness + hotCore * 0.46 + random() * 0.018);
+    colors[i * 3 + 1] = clamp01(c.g * brightness + hotCore * 0.68 + random() * 0.025);
+    colors[i * 3 + 2] = clamp01(c.b * brightness + hotCore * 1.05 + random() * 0.035);
 
-    sizes[i] = 0.036 + Math.pow(random(), 7.0) * 1.08 + (isPoetHalo ? 0.025 : 0);
+    sizes[i] = 0.035 + Math.pow(random(), 7.0) * 1.06 + (isPoetHalo ? 0.026 : 0) + (isForeground ? 0.08 + random() * 0.16 : 0);
   }
 
   return { positions, colors, sizes, dynastyIndex, total: count };
