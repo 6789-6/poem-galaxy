@@ -25,6 +25,7 @@ const vertexShader = `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vTwinkle;
+  varying float vNearness;
 
   float dynastyVisibility(float value) {
     if (value < 0.5) return uActiveDynasties[0];
@@ -38,15 +39,20 @@ const vertexShader = `
   void main() {
     float active = dynastyVisibility(dynasty);
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float pulse = 1.0 + uTwinkleAmp * sin(uTime * 0.7 + twinkle * 6.2831853);
+    float viewDepth = max(6.0, -mvPosition.z);
+    float pulse = 1.0 + uTwinkleAmp * sin(uTime * 0.55 + twinkle * 6.2831853);
+    float nearness = clamp(1.0 - viewDepth / 210.0, 0.0, 1.0);
+    float foregroundBoost = 1.0 + pow(nearness, 2.4) * 2.65;
+    float farDimming = clamp(viewDepth / 260.0, 0.34, 1.0);
 
-    vColor = color * mix(vec3(uDynastyFade), vec3(1.0), active);
-    vAlpha = mix(0.06, 0.9, active);
+    vColor = color * mix(vec3(uDynastyFade), vec3(1.0), active) * (0.72 + foregroundBoost * 0.16);
+    vAlpha = mix(0.045, 0.92, active) * farDimming;
     vTwinkle = twinkle;
+    vNearness = nearness;
 
     gl_PointSize = clamp(
-      size * pulse * (uPointScale / max(10.0, -mvPosition.z)) * uPixelRatio,
-      0.8,
+      size * pulse * foregroundBoost * (uPointScale / viewDepth) * uPixelRatio,
+      0.56,
       uMaxPointSize
     );
     gl_Position = projectionMatrix * mvPosition;
@@ -57,20 +63,21 @@ const fragmentShader = `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vTwinkle;
+  varying float vNearness;
 
   void main() {
     vec2 uv = gl_PointCoord * 2.0 - 1.0;
     float r2 = dot(uv, uv);
     if (r2 > 1.0) discard;
 
-    float body = exp(-r2 * 10.5);
-    float core = exp(-r2 * 52.0);
-    float halo = smoothstep(1.0, 0.18, r2) * 0.05;
-    float alpha = (body * 0.72 + core * 0.22 + halo) * vAlpha;
+    float body = exp(-r2 * mix(11.5, 6.8, vNearness));
+    float core = exp(-r2 * 58.0);
+    float halo = smoothstep(1.0, 0.12, r2) * mix(0.025, 0.085, vNearness);
+    float alpha = (body * 0.7 + core * 0.2 + halo) * vAlpha;
 
-    if (alpha < 0.012) discard;
+    if (alpha < 0.01) discard;
 
-    vec3 bloomTint = vColor * (0.94 + core * 0.72 + vTwinkle * 0.04);
+    vec3 bloomTint = vColor * (0.9 + core * 0.64 + vTwinkle * 0.035 + vNearness * 0.12);
     gl_FragColor = vec4(bloomTint, alpha);
   }
 `;
@@ -123,6 +130,7 @@ const GpuStarfield = memo(function GpuStarfield({ activeDynasties, visualQuality
         vertexColors: true,
         transparent: true,
         depthWrite: false,
+        depthTest: true,
         blending: THREE.AdditiveBlending,
         toneMapped: false
       }),
