@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { GalaxyMode, Selection } from '../App';
 import { RENDER_PRESETS, type VisualQuality } from '../config/renderPresets';
 import type { Dynasty, Poet } from '../data/poetry';
-import { dynastyColors, dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
+import { dynastyOrder, poemsByPoet, poetById, poets } from '../data/poetry';
 import { buildRelationshipSegments, poetWorldPosition } from '../lib/galaxy';
 import GpuStarfield from './GpuStarfield';
 import NebulaClouds from './NebulaClouds';
@@ -108,40 +108,129 @@ function createSoftPointMaterial(baseSize: number, opacity: number, maxSize: num
   });
 }
 
+function smoothStep01(value: number) {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function cubicEaseOut(value: number) {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function quadraticBezier(out: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, t: number) {
+  const inv = 1 - t;
+  out.set(0, 0, 0)
+    .addScaledVector(a, inv * inv)
+    .addScaledVector(b, 2 * inv * t)
+    .addScaledVector(c, t * t);
+  return out;
+}
+
+function cameraOffsetForMode(mode: GalaxyMode, orbit: number, fly = 0) {
+  const distance = mode === 'reading' ? 13 + fly * 7 : mode === 'network' ? 64 : mode === 'tour' ? 76 : 31 + fly * 8;
+  const height = mode === 'network' ? 38 : mode === 'tour' ? 36 : mode === 'reading' ? 12 : 16 + fly * 5;
+  return new THREE.Vector3(
+    Math.cos(orbit) * distance,
+    height,
+    Math.sin(orbit) * distance * (mode === 'network' ? 0.9 : 0.74)
+  );
+}
+
 function CameraRig({ focusId, mode, visualQuality }: { focusId: string; mode: GalaxyMode; visualQuality: VisualQuality }) {
   const { camera } = useThree();
   const target = useRef(new THREE.Vector3(8, 22, 0));
   const clock = useRef(0);
   const lastFocus = useRef(focusId);
-  const flightBoost = useRef(0);
+  const lastMode = useRef(mode);
+  const flight = useRef({
+    active: false,
+    t: 1,
+    duration: 2.1,
+    start: new THREE.Vector3(),
+    control: new THREE.Vector3(),
+    end: new THREE.Vector3(),
+    lookStart: new THREE.Vector3(),
+    lookControl: new THREE.Vector3(),
+    lookEnd: new THREE.Vector3(),
+    roll: 0
+  });
+  const scratchPosition = useRef(new THREE.Vector3());
+  const scratchLook = useRef(new THREE.Vector3());
 
   useEffect(() => {
     const poet = poetById[focusId] ?? poets[0];
-    target.current.copy(poetWorldPosition(poet));
-    if (lastFocus.current !== focusId) {
-      flightBoost.current = visualQuality === 'performance' ? 0.55 : 1;
+    const nextFocus = poetWorldPosition(poet);
+    const focusChanged = lastFocus.current !== focusId;
+    const modeChanged = lastMode.current !== mode;
+    target.current.copy(nextFocus);
+
+    if (focusChanged || modeChanged) {
+      const route = flight.current;
+      const currentPosition = camera.position.clone();
+      const currentLook = target.current.clone();
+      const orbitSeed = Math.atan2(currentPosition.z - nextFocus.z, currentPosition.x - nextFocus.x) + (focusChanged ? 0.92 : 0.32);
+      const finalOffset = cameraOffsetForMode(mode, orbitSeed + 0.38, mode === 'reading' ? 0.15 : 0.35);
+      const finalPosition = nextFocus.clone().add(finalOffset);
+
+      const outward = currentPosition.clone().sub(nextFocus);
+      if (outward.lengthSq() < 1) outward.set(1, 0.2, 0.7);
+      outward.normalize();
+      const side = new THREE.Vector3(-outward.z, 0, outward.x).normalize();
+      const pullbackDistance = mode === 'network' ? 132 : mode === 'reading' ? 82 : 108;
+      const lift = mode === 'network' ? 64 : mode === 'reading' ? 36 : 52;
+      const lateral = focusChanged ? 36 : 18;
+
+      route.active = true;
+      route.t = 0;
+      route.duration = visualQuality === 'performance' ? 1.35 : mode === 'network' ? 2.55 : mode === 'reading' ? 1.85 : 2.15;
+      route.start.copy(currentPosition);
+      route.control.copy(nextFocus).addScaledVector(outward, pullbackDistance).addScaledVector(side, lateral).add(new THREE.Vector3(0, lift, 0));
+      route.end.copy(finalPosition);
+      route.lookStart.copy(currentLook);
+      route.lookControl.copy(nextFocus).addScaledVector(side, lateral * 0.28).add(new THREE.Vector3(0, 9, 0));
+      route.lookEnd.copy(nextFocus);
+      route.roll = focusChanged ? (side.x > 0 ? 1 : -1) * 0.012 : 0.006;
+
       lastFocus.current = focusId;
+      lastMode.current = mode;
     }
-  }, [focusId, visualQuality]);
+  }, [camera, focusId, mode, visualQuality]);
 
   useFrame((_, delta) => {
-    const motionScale = visualQuality === 'performance' ? 0.35 : 0.72;
+    const motionScale = visualQuality === 'performance' ? 0.32 : 0.72;
     clock.current += delta * motionScale;
-    flightBoost.current = Math.max(0, flightBoost.current - delta * 0.72);
-    const focus = target.current;
-    const orbit = mode === 'tour' ? clock.current * 0.16 : clock.current * 0.025;
-    const fly = flightBoost.current;
-    const distance = mode === 'reading' ? 12 + fly * 10 : mode === 'network' ? 58 : mode === 'tour' ? 72 : 34 + fly * 24;
-    const height = mode === 'network' ? 34 : mode === 'tour' ? 32 + Math.sin(clock.current * 0.14) * 5 : 14 + fly * 8;
-    const desired = new THREE.Vector3(
-      focus.x + Math.cos(orbit + fly * 1.1) * distance,
-      focus.y + height,
-      focus.z + Math.sin(orbit + fly * 1.1) * distance * 0.78
-    );
-
+    const route = flight.current;
     const perspectiveCamera = camera as THREE.PerspectiveCamera;
-    camera.position.lerp(desired, mode === 'tour' ? 0.012 : fly > 0.05 ? 0.078 : 0.038);
-    perspectiveCamera.fov = THREE.MathUtils.lerp(perspectiveCamera.fov, fly > 0.08 ? 45 : mode === 'reading' ? 42 : 55, 0.08);
+    const focus = target.current;
+
+    if (route.active) {
+      route.t = Math.min(1, route.t + delta / route.duration);
+      const t = smoothStep01(route.t);
+      const cinematicT = cubicEaseOut(route.t);
+      const midBoost = Math.sin(t * Math.PI);
+      const position = quadraticBezier(scratchPosition.current, route.start, route.control, route.end, t);
+      const lookAt = quadraticBezier(scratchLook.current, route.lookStart, route.lookControl, route.lookEnd, Math.min(1, t * 1.18));
+      const drift = new THREE.Vector3(
+        Math.sin(clock.current * 1.8) * 0.18,
+        Math.sin(clock.current * 1.2) * 0.1,
+        Math.cos(clock.current * 1.5) * 0.16
+      ).multiplyScalar(midBoost);
+
+      camera.position.copy(position).add(drift);
+      perspectiveCamera.fov = THREE.MathUtils.lerp(69 + midBoost * 5, mode === 'reading' ? 41 : mode === 'network' ? 56 : 49, cinematicT);
+      perspectiveCamera.updateProjectionMatrix();
+      camera.lookAt(lookAt);
+      camera.rotateZ(route.roll * midBoost);
+
+      if (route.t >= 1) route.active = false;
+      return;
+    }
+
+    const orbit = mode === 'tour' ? clock.current * 0.16 : clock.current * 0.018;
+    const desired = focus.clone().add(cameraOffsetForMode(mode, orbit));
+    camera.position.lerp(desired, mode === 'tour' ? 0.012 : mode === 'network' ? 0.026 : 0.034);
+    perspectiveCamera.fov = THREE.MathUtils.lerp(perspectiveCamera.fov, mode === 'reading' ? 42 : mode === 'network' ? 56 : 55, 0.055);
     perspectiveCamera.updateProjectionMatrix();
     camera.lookAt(focus);
   });
