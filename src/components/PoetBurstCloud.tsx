@@ -9,11 +9,48 @@ import type { VisualQuality } from '../config/renderPresets';
 const accentByDynasty: Record<string, string> = {
   '先秦': '#5ff6ff',
   '汉魏六朝': '#9a8cff',
-  '唐': '#bdefff',
+  '唐': '#d8fbff',
   '宋': '#7fffd2',
   '元明清': '#d987ff',
   '近现代': '#a8c7ff'
 };
+
+const vertexShader = `
+  attribute float size;
+  uniform float uTime;
+  uniform float uPixelRatio;
+  uniform float uPointScale;
+  uniform float uReveal;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vec3 p = position * mix(0.16, 1.0, uReveal);
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    float depth = max(10.0, -mv.z);
+    float breath = 0.94 + 0.06 * sin(uTime * 0.8 + position.x * 0.21 + position.z * 0.17);
+    vColor = color;
+    vAlpha = uReveal * breath;
+    gl_PointSize = clamp(size * uPointScale * uPixelRatio / depth, 0.35, 4.2);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const fragmentShader = `
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vec2 uv = gl_PointCoord * 2.0 - 1.0;
+    float r2 = dot(uv, uv);
+    if (r2 > 1.0) discard;
+    float core = exp(-r2 * 34.0);
+    float body = exp(-r2 * 9.0);
+    float alpha = (body * 0.62 + core * 0.24) * vAlpha;
+    if (alpha < 0.008) discard;
+    gl_FragColor = vec4(vColor * (0.72 + core * 0.46), alpha);
+  }
+`;
 
 function mulberry32(seed: number) {
   return function random() {
@@ -30,44 +67,39 @@ function poetSeed(poet: Poet) {
 
 export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Poet; mode: GalaxyMode; visualQuality: VisualQuality }) {
   const group = useRef<THREE.Group>(null);
-  const points = useRef<THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const progress = useRef(0);
   const lastPoet = useRef(poet.id);
-  const accent = accentByDynasty[poet.dynasty] ?? '#bdefff';
+  const accent = accentByDynasty[poet.dynasty] ?? '#d8fbff';
 
   const geometry = useMemo(() => {
     const random = mulberry32(poetSeed(poet));
     const poemCount = Math.max(1, poemsByPoet[poet.id]?.length ?? 1);
-    const base = mode === 'reading' ? 3600 : 2400;
-    const count = visualQuality === 'performance' ? Math.round(base * 0.45) : base;
+    const base = mode === 'reading' ? 2400 : 1600;
+    const count = visualQuality === 'performance' ? Math.round(base * 0.38) : base;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
     const baseColor = new THREE.Color(accent);
     const white = new THREE.Color('#ffffff');
+    const violet = new THREE.Color('#978cff');
 
     for (let i = 0; i < count; i += 1) {
-      const arm = i % 6;
-      const poemBand = (i % Math.min(7, poemCount + 2)) / Math.max(1, Math.min(7, poemCount + 2));
-      const radius = Math.pow(random(), 0.62) * (mode === 'reading' ? 24 : 17) + 1.2;
-      const twist = radius * 0.18;
-      const angle = arm * Math.PI * 2 / 6 + twist + (random() - 0.5) * 0.82;
-      const ringLift = Math.sin(radius * 0.54 + arm) * 1.7;
-      const depth = (random() - 0.5) * (6 + radius * 0.52);
-      const x = Math.cos(angle) * radius * (1.05 + poemBand * 0.18);
-      const y = ringLift + (random() - 0.5) * (2.2 + poemBand * 3.2);
-      const z = Math.sin(angle) * radius * 0.72 + depth;
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
+      const arm = i % 7;
+      const band = (i % Math.min(8, poemCount + 3)) / Math.max(1, Math.min(8, poemCount + 3));
+      const radius = Math.pow(random(), 0.72) * (mode === 'reading' ? 20 : 13.5) + 0.8;
+      const angle = arm * Math.PI * 2 / 7 + radius * 0.22 + (random() - 0.5) * 0.52;
+      const vertical = Math.sin(radius * 0.55 + arm) * 1.2 + (random() - 0.5) * (1.8 + band * 2.2);
+      const depth = (random() - 0.5) * (4 + radius * 0.42);
+      positions[i * 3] = Math.cos(angle) * radius * (1.02 + band * 0.1);
+      positions[i * 3 + 1] = vertical;
+      positions[i * 3 + 2] = Math.sin(angle) * radius * 0.66 + depth;
 
-      const brightness = 0.48 + random() * 0.52;
-      const mix = random() > 0.84 ? 0.55 : 0.18 + poemBand * 0.22;
-      const c = baseColor.clone().lerp(white, mix).multiplyScalar(brightness + 0.35);
+      const c = baseColor.clone().lerp(random() > 0.85 ? violet : white, 0.16 + band * 0.24).multiplyScalar(0.55 + random() * 0.46);
       colors[i * 3] = Math.min(1, c.r);
       colors[i * 3 + 1] = Math.min(1, c.g);
       colors[i * 3 + 2] = Math.min(1, c.b);
-      sizes[i] = 0.85 + random() * 2.2 + Math.max(0, 1.0 - radius / 20) * 1.1;
+      sizes[i] = 0.55 + random() * 1.45 + Math.max(0, 1 - radius / 18) * 0.55;
     }
 
     const g = new THREE.BufferGeometry();
@@ -78,6 +110,23 @@ export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Po
     return g;
   }, [accent, mode, poet, visualQuality]);
 
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uPixelRatio: { value: Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 1.2) },
+      uPointScale: { value: mode === 'reading' ? 34 : 28 },
+      uReveal: { value: 0 }
+    },
+    vertexShader,
+    fragmentShader,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false
+  }), [mode]);
+
   useEffect(() => {
     if (lastPoet.current !== poet.id || mode === 'reading') {
       progress.current = 0;
@@ -86,33 +135,20 @@ export default function PoetBurstCloud({ poet, mode, visualQuality }: { poet: Po
   }, [mode, poet.id]);
 
   useFrame(({ clock }, delta) => {
-    if (!group.current || !points.current) return;
-    progress.current = Math.min(1, progress.current + delta * (mode === 'reading' ? 0.82 : 0.58));
+    if (!group.current || !materialRef.current) return;
+    progress.current = Math.min(1, progress.current + delta * (mode === 'reading' ? 0.75 : 0.55));
     const reveal = progress.current * progress.current * (3 - 2 * progress.current);
-    const scale = THREE.MathUtils.lerp(0.12, 1, reveal);
-    group.current.scale.setScalar(scale);
-    group.current.rotation.y = clock.elapsedTime * (visualQuality === 'performance' ? 0.045 : 0.085);
-    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.18) * 0.08;
-    points.current.material.opacity = (mode === 'reading' ? 0.74 : 0.48) * reveal * (0.86 + Math.sin(clock.elapsedTime * 1.8) * 0.14);
+    group.current.rotation.y = clock.elapsedTime * (visualQuality === 'performance' ? 0.025 : 0.055);
+    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.16) * 0.035;
+    materialRef.current.uniforms.uTime.value = clock.elapsedTime;
+    materialRef.current.uniforms.uReveal.value = reveal * (mode === 'network' ? 0.7 : 1);
   });
-
-  const ringRadii = mode === 'reading' ? [6.8, 11.5, 17.2, 23.0] : [5.2, 9.2, 13.8];
 
   return (
     <group ref={group} position={poet.position}>
-      <points ref={points} geometry={geometry} frustumCulled={false}>
-        <pointsMaterial vertexColors size={0.105} sizeAttenuation transparent opacity={0.01} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      <points geometry={geometry} material={material} frustumCulled={false}>
+        <primitive object={material} ref={materialRef} attach="material" />
       </points>
-      {visualQuality !== 'performance' && ringRadii.map((radius, index) => (
-        <mesh key={radius} rotation={[Math.PI / 2 + index * 0.18, index * 0.37, index * 0.82]}>
-          <torusGeometry args={[radius, 0.01, 6, 220]} />
-          <meshBasicMaterial color={index % 2 ? '#ffffff' : accent} transparent opacity={0.08 - index * 0.012} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-        </mesh>
-      ))}
-      <mesh scale={[0.04, mode === 'reading' ? 34 : 22, 0.04]}>
-        <cylinderGeometry args={[1, 1, 1, 18]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.06} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-      </mesh>
     </group>
   );
 }
