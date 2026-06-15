@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import GalaxyScene from './components/GalaxyScene';
+import GalaxyScene from './components/GalaxySceneClean';
 import Hud from './components/Hud';
 import PoetryPanel from './components/PoetryPanel';
 import type { VisualQuality } from './config/renderPresets';
@@ -28,7 +28,7 @@ function App() {
   const [activeDynasties, setActiveDynasties] = useState<Dynasty[]>(dynastyOrder);
   const [focusId, setFocusId] = useState('li-bai');
   const [visualQuality, setVisualQuality] = useState<VisualQuality>(() => (prefersReducedMotion() ? 'performance' : 'cinematic'));
-  const [uiHidden, setUiHidden] = useState(false);
+  const [uiHidden, setUiHidden] = useState(true);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
