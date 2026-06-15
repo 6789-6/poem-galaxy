@@ -23,6 +23,7 @@ type SceneProps = {
 };
 
 const AXIS = new Vector3(34, 21, 27);
+const WHITE = new Color('#f3fdff');
 
 const SOFT_POINT_VERTEX = `
   attribute vec3 color;
@@ -32,7 +33,7 @@ const SOFT_POINT_VERTEX = `
   void main() {
     vColor = color;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = clamp(aSize * uScale * (210.0 / max(18.0, -mvPosition.z)), 1.0, 18.0);
+    gl_PointSize = clamp(aSize * uScale * (210.0 / max(18.0, -mvPosition.z)), 1.0, 16.0);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -44,9 +45,10 @@ const SOFT_POINT_FRAGMENT = `
   void main() {
     vec2 p = gl_PointCoord - vec2(0.5);
     float d = length(p);
-    float core = smoothstep(0.5, 0.06, d);
-    float glow = smoothstep(0.5, 0.18, d) * 0.32;
-    float alpha = (core + glow) * uOpacity;
+    float core = smoothstep(0.36, 0.02, d);
+    float halo = smoothstep(0.5, 0.12, d) * 0.42;
+    float rim = smoothstep(0.5, 0.36, d) * 0.08;
+    float alpha = (core + halo + rim) * uOpacity;
     gl_FragColor = vec4(vColor, alpha);
   }
 `;
@@ -79,67 +81,70 @@ function createSoftPointGeometry(count: number, getPoint: (index: number) => { p
 }
 
 function createBackdropGeometry() {
-  return createSoftPointGeometry(900, (i) => {
+  return createSoftPointGeometry(1100, (i) => {
     const u = (i * 0.61803398875) % 1;
     const v = ((i * 0.754877666) % 1) * 2 - 1;
     const theta = u * Math.PI * 2;
     const phi = Math.acos(v);
-    const radius = 150 + ((i * 0.318309886) % 1) * 75;
+    const radius = 155 + ((i * 0.318309886) % 1) * 82;
     const position = new Vector3(
       Math.sin(phi) * Math.cos(theta) * radius,
       Math.cos(phi) * radius * 0.72,
       Math.sin(phi) * Math.sin(theta) * radius
     );
-    const tone = i % 7 === 0 ? '#ff89d9' : i % 5 === 0 ? '#79fff0' : '#d9f5ff';
-    const color = colorOf(tone, 0.28 + ((i * 0.271) % 1) * 0.42);
-    return { position, color, size: 0.45 + ((i * 0.417) % 1) * 0.75 };
+    const tone = i % 9 === 0 ? '#ff8fe4' : i % 6 === 0 ? '#77fff1' : '#d9f7ff';
+    const color = colorOf(tone, 0.22 + ((i * 0.271) % 1) * 0.38);
+    return { position, color, size: 0.34 + ((i * 0.417) % 1) * 0.62 };
   });
 }
 
 function createStaticGlobeGeometry() {
   const dynasties = Object.keys(dynastyColors) as Array<keyof typeof dynastyColors>;
-  return createSoftPointGeometry(6200, (i) => {
+  return createSoftPointGeometry(7600, (i) => {
     const u = (i * 0.61803398875) % 1;
     const v = ((i * 0.754877666) % 1) * 2 - 1;
     const theta = u * Math.PI * 2;
     const band = Math.asin(v);
     const shellNoise = (i * 0.431) % 1;
-    const corePoint = i % 11 === 0;
-    const shell = corePoint ? Math.pow(shellNoise, 0.45) * 0.48 : 0.6 + Math.pow(shellNoise, 0.5) * 0.42;
-    const arm = Math.sin(theta * 5.0 + shell * 5.4) * 0.055 + Math.sin(theta * 2.0 - band * 3.0) * 0.035;
-    const r = shell + arm;
+    const corePoint = i % 13 === 0;
+    const ringPoint = i % 17 === 0;
+    const shell = corePoint ? Math.pow(shellNoise, 0.46) * 0.5 : 0.58 + Math.pow(shellNoise, 0.54) * 0.44;
+    const arm = Math.sin(theta * 5.0 + shell * 5.4) * 0.06 + Math.sin(theta * 2.0 - band * 3.0) * 0.035;
+    const ringBias = ringPoint ? 0.05 * Math.sin(theta * 10.0) : 0;
+    const r = shell + arm + ringBias;
     const position = new Vector3(
       Math.cos(theta) * Math.cos(band) * AXIS.x * r,
-      Math.sin(band) * AXIS.y * r * (0.86 + Math.sin(theta * 3.0) * 0.035),
+      Math.sin(band) * AXIS.y * r * (0.84 + Math.sin(theta * 3.0) * 0.035),
       Math.sin(theta) * Math.cos(band) * AXIS.z * r
     );
 
     const dynasty = dynasties[(i + Math.floor(theta * 2)) % dynasties.length];
-    const base = colorOf(dynastyColors[dynasty], corePoint ? 0.62 : 0.48 + shell * 0.32);
-    const color = base.lerp(new Color('#eaf9ff'), corePoint ? 0.52 : 0.18 + shellNoise * 0.16);
-    return { position, color, size: corePoint ? 0.72 : 0.34 + shellNoise * 0.55 };
+    const base = colorOf(dynastyColors[dynasty], corePoint ? 0.68 : 0.46 + shell * 0.34);
+    const color = base.lerp(WHITE, corePoint ? 0.58 : 0.16 + shellNoise * 0.18);
+    return { position, color, size: corePoint ? 0.66 : ringPoint ? 0.44 : 0.28 + shellNoise * 0.48 };
   });
 }
 
 function createPoemClusterGeometry(poet: Poet) {
   const poetPoems = poems.filter((poem) => poem.poetId === poet.id);
-  const visualCount = Math.max(96, poetPoems.length * 26);
+  const visualCount = Math.max(144, poetPoems.length * 34);
   const base = new Color(dynastyColors[poet.dynasty]);
 
   return createSoftPointGeometry(visualCount, (i) => {
     const poemIndex = i % Math.max(1, poetPoems.length);
     const layer = Math.floor(i / Math.max(1, poetPoems.length));
     const t = i / visualCount;
-    const angle = poemIndex * 1.75 + layer * 0.38;
-    const radius = 2.8 + layer * 0.18 + Math.sin(i * 2.41) * 0.32;
-    const height = Math.sin(angle * 1.8 + layer) * 1.35;
+    const arm = poemIndex % 4;
+    const angle = poemIndex * 1.52 + layer * 0.34 + arm * 0.42;
+    const radius = 2.2 + Math.sqrt(layer + 1) * 0.52 + Math.sin(i * 2.41) * 0.24;
+    const height = Math.sin(angle * 1.72 + layer * 0.34) * (0.72 + layer * 0.08);
     const position = new Vector3(
       Math.cos(angle) * radius,
       height,
-      Math.sin(angle) * radius * 0.74
+      Math.sin(angle) * radius * 0.72
     );
-    const color = base.clone().lerp(new Color('#f2fbff'), 0.28 + 0.45 * Math.sin(t * Math.PI));
-    return { position, color, size: 0.44 + ((i * 0.37) % 1) * 0.58 };
+    const color = base.clone().lerp(WHITE, 0.32 + 0.42 * Math.sin(t * Math.PI));
+    return { position, color, size: 0.34 + ((i * 0.37) % 1) * 0.48 };
   });
 }
 
@@ -161,32 +166,40 @@ function SoftPoints({ geometry, opacity = 0.8, scale = 1 }: { geometry: BufferGe
 
 function BackdropStars() {
   const geometry = useMemo(createBackdropGeometry, []);
-  return <SoftPoints geometry={geometry} opacity={0.42} scale={1.25} />;
+  return <SoftPoints geometry={geometry} opacity={0.36} scale={1.08} />;
 }
 
 function StaticGlobe() {
   const geometry = useMemo(createStaticGlobeGeometry, []);
-  return <SoftPoints geometry={geometry} opacity={0.82} scale={1.18} />;
+  return <SoftPoints geometry={geometry} opacity={0.86} scale={1.08} />;
 }
 
 function GlobeAtmosphere() {
   return (
     <group>
-      <mesh scale={[AXIS.x * 1.05, AXIS.y * 1.05, AXIS.z * 1.05]}>
-        <sphereGeometry args={[1, 64, 32]} />
-        <meshBasicMaterial color="#7ee9ff" transparent opacity={0.035} side={BackSide} depthWrite={false} />
+      <mesh scale={[AXIS.x * 1.055, AXIS.y * 1.055, AXIS.z * 1.055]}>
+        <sphereGeometry args={[1, 80, 40]} />
+        <meshBasicMaterial color="#7ee9ff" transparent opacity={0.026} side={BackSide} depthWrite={false} />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} scale={[AXIS.x * 1.02, AXIS.z * 1.02, 1]}>
-        <torusGeometry args={[1, 0.0026, 8, 160]} />
-        <meshBasicMaterial color="#a7f4ff" transparent opacity={0.24} depthWrite={false} />
+      <mesh scale={[AXIS.x * 0.42, AXIS.y * 0.42, AXIS.z * 0.42]}>
+        <sphereGeometry args={[1, 48, 24]} />
+        <meshBasicMaterial color="#dffcff" transparent opacity={0.035} depthWrite={false} blending={AdditiveBlending} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} scale={[AXIS.x * 1.025, AXIS.z * 1.025, 1]}>
+        <torusGeometry args={[1, 0.0022, 8, 180]} />
+        <meshBasicMaterial color="#a7f4ff" transparent opacity={0.28} depthWrite={false} />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0.78, 0]} scale={[AXIS.x * 0.76, AXIS.z * 0.76, 1]}>
-        <torusGeometry args={[1, 0.002, 8, 140]} />
-        <meshBasicMaterial color="#ff8ee5" transparent opacity={0.12} depthWrite={false} />
+        <torusGeometry args={[1, 0.0018, 8, 150]} />
+        <meshBasicMaterial color="#ff8ee5" transparent opacity={0.13} depthWrite={false} />
       </mesh>
       <mesh rotation={[0, 0, Math.PI / 2]} scale={[AXIS.y * 0.94, AXIS.z * 0.94, 1]}>
-        <torusGeometry args={[1, 0.0016, 8, 120]} />
-        <meshBasicMaterial color="#7efee8" transparent opacity={0.1} depthWrite={false} />
+        <torusGeometry args={[1, 0.0015, 8, 130]} />
+        <meshBasicMaterial color="#7efee8" transparent opacity={0.12} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[1.18, 0.3, 0.78]} scale={[AXIS.x * 0.98, AXIS.z * 0.98, 1]}>
+        <torusGeometry args={[1, 0.0012, 8, 150]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.075} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -199,7 +212,7 @@ function PoetNodes({ selectedPoetId, onSelectPoet, onHoverName }: Pick<SceneProp
         const position = poetPosition(poet);
         const selected = poet.id === selectedPoetId;
         const color = dynastyColors[poet.dynasty];
-        const size = selected ? 0.68 : 0.32 + poet.brightness * 0.12;
+        const size = selected ? 0.72 : 0.3 + poet.brightness * 0.12;
         return (
           <group key={poet.id} position={position}>
             <mesh
@@ -217,24 +230,24 @@ function PoetNodes({ selectedPoetId, onSelectPoet, onHoverName }: Pick<SceneProp
                 onHoverName(null);
               }}
             >
-              <sphereGeometry args={[size, 28, 18]} />
-              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={selected ? 2.65 : 1.45} roughness={0.24} metalness={0.08} />
+              <sphereGeometry args={[size, 32, 20]} />
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={selected ? 3.2 : 1.55} roughness={0.2} metalness={0.1} />
             </mesh>
             <mesh>
-              <sphereGeometry args={[size * (selected ? 3.0 : 2.15), 32, 16]} />
-              <meshBasicMaterial color={color} transparent opacity={selected ? 0.16 : 0.055} depthWrite={false} blending={AdditiveBlending} />
+              <sphereGeometry args={[size * (selected ? 3.25 : 2.0), 32, 18]} />
+              <meshBasicMaterial color={color} transparent opacity={selected ? 0.19 : 0.045} depthWrite={false} blending={AdditiveBlending} />
             </mesh>
             {selected && (
               <>
                 <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[size * 3.0, 0.018, 8, 96]} />
-                  <meshBasicMaterial color="#effcff" transparent opacity={0.72} depthWrite={false} />
+                  <torusGeometry args={[size * 3.05, 0.016, 8, 112]} />
+                  <meshBasicMaterial color="#effcff" transparent opacity={0.7} depthWrite={false} />
                 </mesh>
                 <mesh rotation={[1.06, 0.52, 0.18]}>
-                  <torusGeometry args={[size * 4.25, 0.012, 8, 120]} />
-                  <meshBasicMaterial color={color} transparent opacity={0.52} depthWrite={false} blending={AdditiveBlending} />
+                  <torusGeometry args={[size * 4.35, 0.011, 8, 128]} />
+                  <meshBasicMaterial color={color} transparent opacity={0.5} depthWrite={false} blending={AdditiveBlending} />
                 </mesh>
-                <Html distanceFactor={15} position={[0, size * 3.2, 0]} center>
+                <Html distanceFactor={15} position={[0, size * 3.25, 0]} center>
                   <div className="globe-label strong">{poet.name}</div>
                 </Html>
               </>
@@ -258,9 +271,22 @@ function RelationshipLines() {
         const target = poetMap.get(relationId);
         if (!target) return;
         const to = poetPosition(target);
-        const color = new Color(dynastyColors[poet.dynasty]).lerp(new Color(dynastyColors[target.dynasty]), 0.5).lerp(new Color('#dff9ff'), 0.22);
-        positions.push(from.x, from.y, from.z, to.x, to.y, to.z);
-        colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+        const mid = from.clone().add(to).multiplyScalar(0.5);
+        const lift = mid.clone().normalize().multiplyScalar(8.5 + from.distanceTo(to) * 0.08);
+        const control = mid.add(lift);
+        const color = new Color(dynastyColors[poet.dynasty]).lerp(new Color(dynastyColors[target.dynasty]), 0.5).lerp(WHITE, 0.26);
+        const steps = 16;
+        let previous = from.clone();
+        for (let s = 1; s <= steps; s += 1) {
+          const t = s / steps;
+          const a = from.clone().lerp(control, t);
+          const b = control.clone().lerp(to, t);
+          const point = a.lerp(b, t);
+          positions.push(previous.x, previous.y, previous.z, point.x, point.y, point.z);
+          const fade = 0.72 + 0.28 * Math.sin(t * Math.PI);
+          colors.push(color.r * fade, color.g * fade, color.b * fade, color.r * fade, color.g * fade, color.b * fade);
+          previous = point;
+        }
       });
     });
 
@@ -272,7 +298,7 @@ function RelationshipLines() {
 
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial vertexColors transparent opacity={0.13} blending={AdditiveBlending} depthWrite={false} />
+      <lineBasicMaterial vertexColors transparent opacity={0.16} blending={AdditiveBlending} depthWrite={false} />
     </lineSegments>
   );
 }
@@ -280,13 +306,18 @@ function RelationshipLines() {
 function PoemCluster({ poet, selectedPoemId, onSelectPoem, onHoverName }: { poet: Poet; selectedPoemId: string | null; onSelectPoem: (poem: Poem) => void; onHoverName: (name: string | null) => void }) {
   const geometry = useMemo(() => createPoemClusterGeometry(poet), [poet]);
   const poetPoems = useMemo(() => poems.filter((poem) => poem.poetId === poet.id), [poet]);
+  const baseColor = dynastyColors[poet.dynasty];
 
   return (
     <group position={poetPosition(poet)} rotation={[0, 0.18, 0]}>
-      <SoftPoints geometry={geometry} opacity={0.9} scale={1.45} />
+      <SoftPoints geometry={geometry} opacity={0.92} scale={1.36} />
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[5.25, 0.009, 8, 120]} />
-        <meshBasicMaterial color={dynastyColors[poet.dynasty]} transparent opacity={0.28} depthWrite={false} blending={AdditiveBlending} />
+        <torusGeometry args={[5.45, 0.008, 8, 132]} />
+        <meshBasicMaterial color={baseColor} transparent opacity={0.28} depthWrite={false} blending={AdditiveBlending} />
+      </mesh>
+      <mesh rotation={[0.95, 0.26, 0.15]}>
+        <torusGeometry args={[3.9, 0.006, 8, 116]} />
+        <meshBasicMaterial color="#edfaff" transparent opacity={0.18} depthWrite={false} blending={AdditiveBlending} />
       </mesh>
       {poetPoems.map((poem, index) => {
         const angle = index * 1.9;
@@ -309,12 +340,12 @@ function PoemCluster({ poet, selectedPoemId, onSelectPoem, onHoverName }: { poet
                 onHoverName(null);
               }}
             >
-              <sphereGeometry args={[selected ? 0.33 : 0.2, 20, 12]} />
-              <meshStandardMaterial color="#f7fbff" emissive="#bdefff" emissiveIntensity={selected ? 2.25 : 1.2} roughness={0.22} />
+              <sphereGeometry args={[selected ? 0.34 : 0.2, 22, 14]} />
+              <meshStandardMaterial color="#f7fbff" emissive="#bdefff" emissiveIntensity={selected ? 2.35 : 1.25} roughness={0.2} />
             </mesh>
             <mesh>
-              <sphereGeometry args={[selected ? 0.95 : 0.52, 20, 12]} />
-              <meshBasicMaterial color="#c9f5ff" transparent opacity={selected ? 0.2 : 0.07} depthWrite={false} blending={AdditiveBlending} />
+              <sphereGeometry args={[selected ? 0.98 : 0.5, 20, 12]} />
+              <meshBasicMaterial color="#c9f5ff" transparent opacity={selected ? 0.22 : 0.06} depthWrite={false} blending={AdditiveBlending} />
             </mesh>
             {(selected || poetPoems.length <= 4) && (
               <Html distanceFactor={11} position={[0, 0.58, 0]} center>
@@ -382,11 +413,12 @@ export function PoetryGlobeScene({ viewMode, selectedPoetId, selectedPoemId, onS
   return (
     <>
       <color attach="background" args={["#02070d"]} />
-      <fog attach="fog" args={["#02070d", 78, 172]} />
-      <ambientLight intensity={0.24} />
-      <pointLight position={[0, 0, 48]} intensity={18} color="#bff6ff" />
-      <pointLight position={[-38, 26, 24]} intensity={6.5} color="#ff8ae6" />
-      <pointLight position={[42, -20, -28]} intensity={4.5} color="#78ffe9" />
+      <fog attach="fog" args={["#02070d", 82, 178]} />
+      <ambientLight intensity={0.22} />
+      <hemisphereLight args={["#bff8ff", "#07111f", 0.9]} />
+      <pointLight position={[0, 0, 48]} intensity={15} color="#bff6ff" />
+      <pointLight position={[-38, 26, 24]} intensity={5.4} color="#ff8ae6" />
+      <pointLight position={[42, -20, -28]} intensity={4.2} color="#78ffe9" />
 
       <BackdropStars />
       <group>
