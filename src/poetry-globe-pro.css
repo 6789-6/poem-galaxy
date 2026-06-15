@@ -1,0 +1,299 @@
+/* Premium observatory skin layered on top of poetry-globe.css. */
+:root {
+  --pro-bg: #030813;
+  --pro-panel: rgba(5, 14, 28, 0.44);
+  --pro-panel-deep: rgba(3, 10, 22, 0.72);
+  --pro-stroke: rgba(160, 236, 255, 0.18);
+  --pro-stroke-hot: rgba(145, 247, 255, 0.42);
+  --pro-text-dim: rgba(221, 245, 255, 0.58);
+  --pro-text: #edfdff;
+  --pro-cyan: #7ef4ff;
+  --pro-mint: #77ffd8;
+  --pro-violet: #d997ff;
+  --pro-amber: #ffe4a3;
+}
+
+.globe-app {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(88, 211, 255, 0.13), transparent 24%),
+    radial-gradient(circle at 18% 12%, rgba(180, 108, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 70%, rgba(88, 255, 215, 0.08), transparent 28%),
+    linear-gradient(180deg, #020711 0%, #030816 48%, #01040a 100%);
+}
+
+.globe-app::before {
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(126,244,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126,244,255,0.024) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(126,244,255,0.06), transparent 45%);
+  background-size: 120px 120px, 120px 120px, 100% 100%;
+}
+
+.globe-app::after {
+  background:
+    radial-gradient(circle at center, transparent 0%, transparent 50%, rgba(0,0,0,0.72) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.48), transparent 20%, transparent 80%, rgba(0,0,0,0.5));
+}
+
+.stage-frame {
+  position: absolute;
+  inset: 18px;
+  z-index: 4;
+  pointer-events: none;
+  border: 1px solid rgba(150, 240, 255, 0.055);
+  border-radius: 34px;
+  box-shadow: inset 0 0 90px rgba(94, 220, 255, 0.035);
+}
+.stage-frame::before,
+.stage-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: min(420px, 36vw);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(149, 244, 255, 0.28), transparent);
+}
+.stage-frame::before { top: -1px; }
+.stage-frame::after { bottom: -1px; }
+
+.top-command {
+  top: 20px;
+  left: 28px;
+  right: 28px;
+  align-items: center;
+}
+
+.brand-block,
+.top-stats article,
+.layer-panel,
+.control-dock,
+.hover-badge {
+  border-color: var(--pro-stroke);
+  background:
+    linear-gradient(140deg, rgba(9, 24, 45, 0.58), rgba(3, 9, 20, 0.34)),
+    radial-gradient(circle at 8% 0%, rgba(126, 244, 255, 0.16), transparent 38%),
+    radial-gradient(circle at 90% 110%, rgba(217, 151, 255, 0.09), transparent 42%);
+  box-shadow:
+    0 18px 58px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255,255,255,0.018) inset,
+    inset 0 0 34px rgba(126,244,255,0.025);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.brand-block {
+  border-radius: 999px;
+  min-width: 288px;
+  padding: 11px 18px 11px 13px;
+  box-shadow:
+    0 20px 62px rgba(0,0,0,0.32),
+    0 0 32px rgba(126, 244, 255, 0.08),
+    inset 0 0 24px rgba(255,255,255,0.035);
+}
+.brand-block h1 {
+  font-size: clamp(30px, 3vw, 46px);
+  letter-spacing: 0.12em;
+  background: linear-gradient(120deg, #fff, #bdf8ff 42%, #ffdca6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+.brand-block h1::after {
+  content: " / Poetry Atlas";
+  margin-left: 8px;
+  color: rgba(226, 248, 255, 0.5);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  vertical-align: middle;
+}
+.brand-orb {
+  width: 38px;
+  height: 38px;
+  background:
+    radial-gradient(circle at 34% 30%, #fff 0 3px, #aaf8ff 4px 8px, transparent 18px),
+    conic-gradient(from 210deg, rgba(126,244,255,0), rgba(126,244,255,0.85), rgba(217,151,255,0.55), rgba(255,228,163,0.62), rgba(126,244,255,0));
+  box-shadow: 0 0 26px rgba(126, 244, 255, 0.56), inset 0 0 18px rgba(255,255,255,0.2);
+}
+
+.top-stats {
+  gap: 10px;
+}
+.top-stats article {
+  position: relative;
+  min-width: 116px;
+  padding: 11px 14px 12px;
+  border-radius: 22px;
+  overflow: hidden;
+}
+.top-stats article::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(126,244,255,0.78), rgba(217,151,255,0.3), transparent);
+}
+.top-stats b {
+  font-size: 21px;
+  color: var(--pro-text);
+}
+.top-stats span {
+  color: var(--pro-text-dim);
+  letter-spacing: 0.06em;
+}
+
+.layer-panel {
+  right: 30px;
+  bottom: 88px;
+  width: min(410px, calc(100vw - 60px));
+  border-radius: 34px;
+  padding: 20px;
+  background:
+    linear-gradient(145deg, rgba(5, 16, 32, 0.74), rgba(3, 8, 18, 0.48)),
+    radial-gradient(circle at 14% 0%, rgba(126, 244, 255, 0.14), transparent 42%),
+    radial-gradient(circle at 108% 18%, rgba(217, 151, 255, 0.1), transparent 36%);
+}
+.layer-panel::before {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.105), transparent 22%, rgba(255,255,255,0.02)),
+    linear-gradient(90deg, rgba(126,244,255,0.12), transparent 32%, transparent 70%, rgba(217,151,255,0.09));
+  opacity: 0.74;
+}
+.layer-panel::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(126,244,255,0.22), transparent);
+  pointer-events: none;
+}
+.panel-header {
+  padding-bottom: 16px;
+  border-bottom-color: rgba(160,236,255,0.13);
+}
+.panel-header h2 {
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  background: linear-gradient(120deg, #ffffff, #c4f8ff 56%, #ffe2ab);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+.layer-meta {
+  color: rgba(221,245,255,0.62);
+}
+.mode-chip {
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(126,244,255,0.95), rgba(217,151,255,0.9));
+  box-shadow: 0 0 32px rgba(126,244,255,0.24);
+}
+
+.focus-metrics {
+  gap: 10px;
+}
+.focus-metrics div {
+  border-radius: 20px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 22% 18%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
+  box-shadow: inset 0 0 22px rgba(255,255,255,0.025);
+}
+.focus-metrics b {
+  font-size: 24px;
+}
+
+.tag-row span,
+.control-dock span {
+  border-color: rgba(160,236,255,0.18);
+  background: linear-gradient(135deg, rgba(126,244,255,0.08), rgba(217,151,255,0.045));
+}
+
+.search-row {
+  margin-top: 18px;
+  padding: 6px;
+  border: 1px solid rgba(160,236,255,0.1);
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.search-row input {
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+}
+.search-row button,
+.back-btn,
+.poem-list button {
+  border-color: rgba(160,236,255,0.2);
+  background:
+    linear-gradient(135deg, rgba(126,244,255,0.12), rgba(217,151,255,0.06)),
+    rgba(255,255,255,0.028);
+}
+.search-row button {
+  border-radius: 16px;
+  color: #061017;
+  background: linear-gradient(135deg, rgba(126,244,255,0.96), rgba(255,228,163,0.9));
+  font-weight: 950;
+}
+.poem-list button {
+  border-radius: 22px;
+  padding: 14px;
+}
+.poem-list button:hover,
+.back-btn:hover {
+  border-color: var(--pro-stroke-hot);
+  background: linear-gradient(135deg, rgba(126,244,255,0.16), rgba(217,151,255,0.08));
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 0 24px rgba(126,244,255,0.08);
+}
+
+.control-dock {
+  bottom: 24px;
+  padding: 9px;
+  border-radius: 999px;
+}
+.control-dock span {
+  padding: 6px 10px;
+  color: rgba(232, 250, 255, 0.68);
+}
+.hover-badge {
+  bottom: 84px;
+  padding: 9px 16px;
+  color: #061017;
+  background: linear-gradient(135deg, rgba(126,244,255,0.92), rgba(255,228,163,0.86));
+  border-color: transparent;
+}
+
+/* Left-side dynasty readout, implemented through existing dynasty tags when panel is open. */
+.dynasty-tags span {
+  position: relative;
+  padding-left: 16px;
+  background: rgba(255,255,255,0.028);
+}
+.dynasty-tags span::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+}
+
+@media (max-width: 900px) {
+  .stage-frame { inset: 10px; border-radius: 24px; }
+  .top-command { left: 12px; right: 12px; top: 12px; }
+  .brand-block { min-width: 0; }
+  .brand-block h1::after { display: none; }
+  .layer-panel { right: 12px; left: 12px; bottom: 72px; width: auto; border-radius: 26px; }
+  .control-dock { bottom: 14px; }
+}
