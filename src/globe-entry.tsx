@@ -1,11 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { PoetryGlobeApp } from './PoetryGlobeApp';
+import { PoetryGlobeAppFloating } from './PoetryGlobeAppFloating';
 import './poetry-globe.css';
 import './poetry-globe-pro.css';
+import './poetry-globe-floating.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PoetryGlobeApp />
+    <PoetryGlobeAppFloating />
   </React.StrictMode>
 );
