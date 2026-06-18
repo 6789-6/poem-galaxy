@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import './data/installExpandedPoetry';
 import { dynastyColors, dynastyOrder, poets, poems, type Poet, type Poem } from './data/expandedPoetry';
-import { PoetryGlobeScene } from './PoetryGlobeScene';
+import { PoetryGlobeScene } from './PoetryGlobeSceneFull';
 
 type ViewMode = 'overview' | 'poet' | 'poem';
 
@@ -125,8 +125,8 @@ export function PoetryGlobeApp() {
       <Canvas
         className="globe-canvas"
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0, 92], fov: 42, near: 0.1, far: 500 }}
-        dpr={[1, 1.6]}
+        camera={{ position: [0, 0, 106], fov: 40, near: 0.1, far: 560 }}
+        dpr={[1, 1.55]}
       >
         <Suspense fallback={null}>
           <PoetryGlobeScene
