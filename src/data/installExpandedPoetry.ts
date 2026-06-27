@@ -1,6 +1,7 @@
 import { poets as seedPoets, poems as seedPoems } from './poetry';
 import { poets as expandedPoets, poems as expandedPoems } from './expandedPoetry';
 import { massPoets, massPoems } from './massPoetryData';
+import { canonicalPoems } from './canonicalPoemDetails';
 
 const expandedPoetIds = new Set(expandedPoets.map((poet) => poet.id));
 massPoets.forEach((poet) => {
@@ -11,7 +12,7 @@ massPoets.forEach((poet) => {
 });
 
 const expandedPoemIds = new Set(expandedPoems.map((poem) => poem.id));
-massPoems.forEach((poem) => {
+[...massPoems, ...canonicalPoems].forEach((poem) => {
   if (!expandedPoemIds.has(poem.id)) {
     expandedPoems.push(poem);
     expandedPoemIds.add(poem.id);
