@@ -61,17 +61,70 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+const dynastyIds = new Set<DynastyId>([
+  'pre-qin',
+  'han-wei',
+  'tang',
+  'song',
+  'yuan-ming-qing',
+  'modern'
+]);
+
+function assertNonNegativeInteger(value: unknown, label: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+    throw new Error(`Invalid ${label}; expected a finite non-negative integer`);
+  }
+}
+
+function assertRelativeJsonPath(value: unknown, label: string): asserts value is string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    !value.endsWith('.json') ||
+    value.startsWith('/') ||
+    value.startsWith('\\') ||
+    value.includes('\\') ||
+    value.includes('//') ||
+    /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) ||
+    /(^|\/)\.\.($|\/)/.test(value)
+  ) {
+    throw new Error(`Invalid ${label}; expected a non-empty relative JSON path`);
+  }
+}
+
 export function parseManifest(value: unknown): DataManifest {
   if (!record(value) || !record(value.source) || !record(value.counts) || !Array.isArray(value.poemShards)) {
     throw new Error('Invalid data manifest shape');
   }
-  const poems = Number(value.counts.classicalPoems);
-  const authors = Number(value.counts.authors);
-  if (poems < 15000 || poems > 20000) throw new Error('Invalid classical poem count; expected 15000—20000');
-  if (Number(value.counts.poems) < poems || Number(value.counts.poems) > 20000) throw new Error('Invalid total poem count');
-  if (authors < 1000) throw new Error('Invalid author count; expected at least 1000');
+  if (value.version !== 1) throw new Error('Invalid manifest version; expected 1');
   if (value.source.repository !== 'chinese-poetry/chinese-poetry') throw new Error('Unexpected source repository');
   if (value.source.commit !== 'b8594f81a89752241442f2ce267d6f66f96704ee') throw new Error('Unexpected source commit');
   if (value.source.license !== 'MIT') throw new Error('Source license must be MIT');
+
+  assertNonNegativeInteger(value.counts.authors, 'author count');
+  assertNonNegativeInteger(value.counts.poems, 'total poem count');
+  assertNonNegativeInteger(value.counts.classicalPoems, 'classical poem count');
+  assertNonNegativeInteger(value.counts.relations, 'relation count');
+  if (value.counts.classicalPoems < 15000 || value.counts.classicalPoems > 20000) {
+    throw new Error('Invalid classical poem count; expected 15000—20000');
+  }
+  if (value.counts.poems < value.counts.classicalPoems || value.counts.poems > 20000) {
+    throw new Error('Invalid total poem count');
+  }
+  if (value.counts.authors < 1000) throw new Error('Invalid author count; expected at least 1000');
+
+  assertRelativeJsonPath(value.featuredPath, 'featured path');
+  assertRelativeJsonPath(value.authorsPath, 'authors path');
+  assertRelativeJsonPath(value.searchIndexPath, 'search index path');
+  for (const shard of value.poemShards) {
+    if (!record(shard)) throw new Error('Invalid poem shard');
+    if (typeof shard.id !== 'string' || shard.id.length === 0) throw new Error('Invalid shard id');
+    if (!dynastyIds.has(shard.dynasty as DynastyId)) throw new Error('Invalid shard dynasty');
+    assertRelativeJsonPath(shard.path, 'shard path');
+    if (typeof shard.checksum !== 'string' || shard.checksum.length === 0) throw new Error('Invalid shard checksum');
+    assertNonNegativeInteger(shard.count, 'shard count');
+    if (shard.count < 1 || shard.count > 500) throw new Error('Invalid shard count; expected 1—500');
+  }
+
   return value as unknown as DataManifest;
 }

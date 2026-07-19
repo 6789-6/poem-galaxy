@@ -30,4 +30,27 @@ describe('parseManifest', () => {
   ])('rejects an invalid manifest', (input, message) => {
     expect(() => parseManifest(input)).toThrow(message);
   });
+
+  it.each([
+    [{ ...valid, version: 2 }, 'version'],
+    [{ ...valid, counts: { ...valid.counts, authors: Number.NaN } }, 'author count'],
+    [{ ...valid, counts: { ...valid.counts, poems: Number.POSITIVE_INFINITY } }, 'total poem count'],
+    [{ ...valid, counts: { ...valid.counts, classicalPoems: 18000.5 } }, 'classical poem count'],
+    [{ ...valid, counts: { ...valid.counts, relations: -1 } }, 'relation count'],
+    [{ ...valid, counts: { ...valid.counts, authors: undefined } }, 'author count'],
+  ])('rejects missing, non-finite, fractional, and negative counts', (input, message) => {
+    expect(() => parseManifest(input)).toThrow(message);
+  });
+
+  it.each([
+    [{ ...valid, featuredPath: '' }, 'featured path'],
+    [{ ...valid, authorsPath: 'https://example.com/authors.json' }, 'authors path'],
+    [{ ...valid, searchIndexPath: '../search-index.json' }, 'search index path'],
+    [{ ...valid, poemShards: [{ ...valid.poemShards[0], dynasty: 'invalid' }] }, 'shard dynasty'],
+    [{ ...valid, poemShards: [{ ...valid.poemShards[0], count: 501 }] }, 'shard count'],
+    [{ ...valid, poemShards: [{ ...valid.poemShards[0], path: '/poems/tang-000.json' }] }, 'shard path'],
+    [{ ...valid, poemShards: [{ ...valid.poemShards[0], checksum: '' }] }, 'shard checksum'],
+  ])('rejects incomplete or unsafe runtime fields', (input, message) => {
+    expect(() => parseManifest(input)).toThrow(message);
+  });
 });
