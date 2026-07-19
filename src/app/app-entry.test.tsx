@@ -1,13 +1,9 @@
 /// <reference types="vite/client" />
 
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import html from '../../index.html?raw';
 import mainSource from '../main.tsx?raw';
-
-vi.mock('../PoetryGlobeAppFloating', () => ({
-  PoetryGlobeAppFloating: () => <div data-testid="legacy-globe" />
-}));
 
 describe('production entry', () => {
   it('loads only main.tsx', () => {
