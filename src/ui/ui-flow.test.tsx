@@ -90,7 +90,7 @@ describe('PoemGalaxyApp flow', () => {
     expect(search).toHaveValue('静夜思');
 
     await user.keyboard('{Escape}');
-    expect(await screen.findByRole('heading', { name: '中华诗词星河' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '诗云' })).toBeInTheDocument();
     expect(search).toHaveValue('静夜思');
   });
 
@@ -134,7 +134,7 @@ describe('PoemGalaxyApp flow', () => {
     render(<PoemGalaxyApp client={createTestClient({ failFirstShard: true })} />);
     await user.type(await screen.findByRole('searchbox'), '春望');
     await user.click(await screen.findByRole('option', { name: /春望/ }));
-    expect(await screen.findByRole('heading', { name: '中华诗词星河' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '诗云' })).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: '重试载入' }));
     expect(await screen.findByRole('heading', { name: '春望' })).toBeInTheDocument();
   });

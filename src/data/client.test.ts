@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dataUrl } from './base-url';
 import { PoetryDataClient } from './client';
 
 describe('PoetryDataClient', () => {
   beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.unstubAllGlobals());
 
   it('keeps data under the GitHub Pages base', () => {
     expect(dataUrl('manifest.json', 'https://example.test', '/poem-galaxy/')).toBe(
@@ -21,6 +22,17 @@ describe('PoetryDataClient', () => {
     ]);
 
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the browser default fetch with the global receiver', async () => {
+    const browserFetch = vi.fn(function (this: unknown) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      return Promise.resolve(new Response(JSON.stringify({ authors: [], poems: [], relations: [] })));
+    });
+    vi.stubGlobal('fetch', browserFetch);
+
+    await expect(new PoetryDataClient().loadFeatured()).resolves.toEqual({ authors: [], poems: [], relations: [] });
+    expect(browserFetch).toHaveBeenCalledTimes(1);
   });
 
   it('retries a shard after a rejected request', async () => {

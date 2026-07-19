@@ -278,7 +278,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
       {state.hudVisible ? (
         <div className="hud-layer">
           <header className="exploration-header">
-            <h1>中华诗词星河</h1>
+            <h1>诗云</h1>
             {manifest ? <p>{manifest.counts.classicalPoems.toLocaleString('zh-CN')} 首古典诗词</p> : null}
             {featured ? (
               <GlobalSearch

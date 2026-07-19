@@ -49,6 +49,14 @@ afterEach(() => {
 });
 
 describe('GlobalSearch', () => {
+  it('does not expose unsupported or dangling ARIA state on an empty searchbox', () => {
+    render(
+      <GlobalSearch client={searchClient([])} onSelectEntry={vi.fn()} onSearchInteraction={vi.fn()} onStatus={vi.fn()} />
+    );
+    expect(screen.getByRole('searchbox')).not.toHaveAttribute('aria-expanded');
+    expect(screen.getByRole('searchbox')).not.toHaveAttribute('aria-controls');
+  });
+
   it('loads the index only after a nonempty query and owns one module Worker for its lifetime', async () => {
     vi.stubGlobal('Worker', SearchWorkerDouble);
     const loads: string[] = [];

@@ -22,6 +22,13 @@ describe('searchEntries', () => {
     expect(searchEntries(entries, '   ', 10)).toEqual([]);
   });
 
+  it('matches common simplified input against traditional corpus text', () => {
+    const traditional = [
+      { id: 'qiang-jin-jiu', kind: 'poem' as const, title: '將進酒', subtitle: '李白', text: '黃河之水天上來' }
+    ];
+    expect(searchEntries(traditional, '将进酒', 10).map((item) => item.id)).toEqual(['qiang-jin-jiu']);
+  });
+
   it('matches the yielding fallback result', async () => {
     expect(await searchEntriesInBatches(entries, '明月', 10, 1)).toEqual(searchEntries(entries, '明月', 10));
   });

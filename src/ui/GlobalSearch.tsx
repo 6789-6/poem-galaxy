@@ -207,8 +207,7 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
         role="searchbox"
         value={query}
         autoComplete="off"
-        aria-controls="poem-search-results"
-        aria-expanded={results.length > 0}
+        aria-controls={results.length > 0 ? 'poem-search-results' : undefined}
         aria-busy={busy}
         onChange={(event) => updateQuery(event.currentTarget.value)}
       />

@@ -1,6 +1,15 @@
 import type { SearchEntry, SearchHit } from './search-protocol';
 
-const normalize = (value: string) => value.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+const SEARCH_VARIANTS: Record<string, string> = {
+  '將': '将',
+  '進': '进'
+};
+
+const normalize = (value: string) => value
+  .normalize('NFKC')
+  .toLowerCase()
+  .replace(/[將進]/g, (character) => SEARCH_VARIANTS[character])
+  .replace(/\s+/g, '');
 
 function scoreEntry(entry: SearchEntry, needle: string): SearchHit | null {
   const title = normalize(entry.title);

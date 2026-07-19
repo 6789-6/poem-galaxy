@@ -11,7 +11,7 @@ export class DataLoadError extends Error {
 export class PoetryDataClient {
   private cache = new Map<string, Promise<unknown>>();
 
-  constructor(private fetcher: typeof fetch = fetch) {}
+  constructor(private fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init)) {}
 
   private load<T>(path: string): Promise<T> {
     const cached = this.cache.get(path);
