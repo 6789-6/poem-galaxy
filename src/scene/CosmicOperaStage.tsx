@@ -3,8 +3,13 @@ import * as THREE from 'three';
 import { QUALITY_PRESETS } from '../performance/quality';
 import { CosmicOperaScene } from './CosmicOperaScene';
 import type { CosmicOperaSceneProps } from './scene-contract';
+import { WebglContextGuard } from '../ui/SceneBoundary';
 
-export default function CosmicOperaStage(props: CosmicOperaSceneProps) {
+export interface CosmicOperaStageProps extends CosmicOperaSceneProps {
+  onFail: () => void;
+}
+
+export default function CosmicOperaStage({ onFail, ...props }: CosmicOperaStageProps) {
   const preset = QUALITY_PRESETS[props.quality];
 
   return (
@@ -23,6 +28,7 @@ export default function CosmicOperaStage(props: CosmicOperaSceneProps) {
         gl.toneMappingExposure = 1.08;
       }}
     >
+      <WebglContextGuard onFail={onFail} />
       <CosmicOperaScene {...props} />
     </Canvas>
   );

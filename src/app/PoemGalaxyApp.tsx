@@ -5,10 +5,14 @@ import { useAdaptiveQuality } from '../performance/use-adaptive-quality';
 import { galaxyReducer, initialGalaxyState } from '../state/galaxy-reducer';
 import type { SearchEntry } from '../workers/search-protocol';
 import { DynastyNavigator } from '../ui/DynastyNavigator';
+import { CinematicIntro } from '../ui/CinematicIntro';
 import { FocusPanel, type FocusPanelProps } from '../ui/FocusPanel';
 import { GlobalSearch } from '../ui/GlobalSearch';
 import { MobileSheet } from '../ui/MobileSheet';
 import { ModeDock } from '../ui/ModeDock';
+import { StaticGalaxy } from '../ui/StaticGalaxy';
+import { SceneBoundary } from '../ui/SceneBoundary';
+import '../styles/cosmic-opera.css';
 
 const CosmicOperaStage = lazy(() => import('../scene/CosmicOperaStage'));
 
@@ -46,6 +50,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
   const [poemsById, setPoemsById] = useState(new Map<string, PoemRecord>());
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [selectionError, setSelectionError] = useState<Error | null>(null);
+  const [sceneFailed, setSceneFailed] = useState(false);
   const [retrySelection, setRetrySelection] = useState<(() => void) | null>(null);
   const [status, setStatus] = useState('正在载入诗词星河');
   const authorsRef = useRef(authorsById);
@@ -53,6 +58,8 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
   const client = useMemo(() => providedClient ?? new PoetryDataClient(), [providedClient]);
   const { quality, reportFps } = useAdaptiveQuality();
   const isMobile = useMediaQuery('(max-width: 760px)');
+  const useStaticScene = forceStatic || sceneFailed;
+  const failScene = useCallback(() => setSceneFailed(true), []);
 
   const replaceAuthors = useCallback((records: AuthorRecord[]) => {
     const next = new Map(records.map((record) => [record.id, record]));
@@ -238,29 +245,40 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
     <main
       className={`poem-galaxy-app mode-${state.mode}${state.hudVisible ? '' : ' hud-hidden'}`}
       data-testid="poem-galaxy-app"
-      data-force-static={forceStatic || undefined}
+      data-force-static={useStaticScene || undefined}
     >
-      <div className="cosmic-stage" aria-hidden="true">
-        {featured ? (
-          <Suspense fallback={<div className="scene-loading">星图构建中</div>}>
-            <CosmicOperaStage
-              state={state}
-              quality={quality}
-              authors={authors}
-              loadedPoems={loadedPoems}
-              relations={relations}
-              onSelectAuthor={(authorId) => { void selectAuthor(authorId); }}
-              onSelectPoem={(poemId, authorId) => { void selectPoem(poemId, authorId); }}
-              onFpsSample={reportFps}
-            />
-          </Suspense>
+      <CinematicIntro poemCount={manifest?.counts.classicalPoems} />
+      <div className="cosmic-stage" aria-hidden={useStaticScene ? undefined : true}>
+        {featured && useStaticScene ? (
+          <StaticGalaxy
+            state={state}
+            authors={authors}
+            relations={relations}
+            onSelectAuthor={(authorId) => { void selectAuthor(authorId); }}
+          />
+        ) : featured ? (
+          <SceneBoundary onFail={failScene}>
+            <Suspense fallback={<div className="scene-loading">星图构建中</div>}>
+              <CosmicOperaStage
+                state={state}
+                quality={quality}
+                authors={authors}
+                loadedPoems={loadedPoems}
+                relations={relations}
+                onSelectAuthor={(authorId) => { void selectAuthor(authorId); }}
+                onSelectPoem={(poemId, authorId) => { void selectPoem(poemId, authorId); }}
+                onFpsSample={reportFps}
+                onFail={failScene}
+              />
+            </Suspense>
+          </SceneBoundary>
         ) : <div className="scene-loading">星图构建中</div>}
       </div>
 
       {state.hudVisible ? (
         <div className="hud-layer">
           <header className="exploration-header">
-            <h1>诗词星河</h1>
+            <h1>中华诗词星河</h1>
             {manifest ? <p>{manifest.counts.classicalPoems.toLocaleString('zh-CN')} 首古典诗词</p> : null}
             {featured ? (
               <GlobalSearch
@@ -271,12 +289,24 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
               />
             ) : null}
           </header>
-          <DynastyNavigator
-            activeDynasties={state.activeDynasties}
-            onChange={(dynasties) => dispatch({ type: 'SET_DYNASTIES', dynasties })}
-          />
-          {isMobile ? <MobileSheet><FocusPanel {...focusPanelProps} /></MobileSheet> : (
-            <aside className="focus-panel" aria-label="诗词详情"><FocusPanel {...focusPanelProps} /></aside>
+          {isMobile ? (
+            <MobileSheet>
+              <DynastyNavigator
+                activeDynasties={state.activeDynasties}
+                onChange={(dynasties) => dispatch({ type: 'SET_DYNASTIES', dynasties })}
+              />
+              {state.mode !== 'overview' || selectionError ? <FocusPanel {...focusPanelProps} /> : null}
+            </MobileSheet>
+          ) : (
+            <>
+              <DynastyNavigator
+                activeDynasties={state.activeDynasties}
+                onChange={(dynasties) => dispatch({ type: 'SET_DYNASTIES', dynasties })}
+              />
+              {state.mode !== 'overview' || selectionError ? (
+                <aside className="focus-panel" aria-label="诗词详情"><FocusPanel {...focusPanelProps} /></aside>
+              ) : null}
+            </>
           )}
         </div>
       ) : null}

@@ -152,7 +152,7 @@ export function FocusPanel({
 
   return (
     <section className="overview-focus" aria-labelledby="overview-heading">
-      <h2 id="overview-heading">中华诗词星河</h2>
+      <h2 id="overview-heading">{selectionError ? '载入未完成' : '中华诗词星河'}</h2>
       <p>搜索诗人或诗作，或从星图中选择一颗诗人星。</p>
       <SelectionFailure error={selectionError} onRetry={onRetrySelection} />
     </section>

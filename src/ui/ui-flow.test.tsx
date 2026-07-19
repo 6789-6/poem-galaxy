@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PoemGalaxyApp } from '../app/PoemGalaxyApp';
 import { PoetryDataClient } from '../data/client';
 
-vi.mock('@react-three/fiber', () => ({ Canvas: ({ children }: { children: ReactNode }) => <div data-testid="canvas">{children}</div> }));
+vi.mock('@react-three/fiber', () => ({
+  Canvas: ({ children }: { children: ReactNode }) => <div data-testid="canvas">{children}</div>,
+  useThree: () => ({ gl: { domElement: document.createElement('canvas') } })
+}));
 vi.mock('../scene/CosmicOperaScene', () => ({ CosmicOperaScene: () => <div data-testid="cosmic-scene" /> }));
 
 afterEach(() => {
@@ -57,6 +60,12 @@ function createTestClient({
 }
 
 describe('PoemGalaxyApp flow', () => {
+  it('keeps search and reading available in static fallback', async () => {
+    render(<PoemGalaxyApp forceStatic client={createTestClient()} />);
+    expect(await screen.findByTestId('static-galaxy')).toBeInTheDocument();
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+  });
+
   it('searches a poem, opens reading, and returns by Escape', async () => {
     const user = userEvent.setup();
     render(<PoemGalaxyApp client={createTestClient()} />);
