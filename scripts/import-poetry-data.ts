@@ -17,6 +17,7 @@ import {
   shardPoems,
   stableId
 } from '../src/data/import/normalize';
+import { verifySourceIdentity } from './source-identity';
 import type {
   AuthorRecord,
   DataManifest,
@@ -154,6 +155,7 @@ async function main() {
   const positionalSource = process.argv.slice(2).find((argument) => !argument.startsWith('-'));
   const sourceRoot = sourceFlag >= 0 ? process.argv[sourceFlag + 1] : positionalSource ?? '.cache/chinese-poetry';
   if (!sourceRoot) throw new Error('Missing path after --source');
+  const sourceIdentity = await verifySourceIdentity(sourceRoot, SOURCE_COMMIT);
 
   const sourceFiles = (await Promise.all(
     SOURCE_DIRECTORIES.map((directory) => walkJson(join(sourceRoot, directory)))
@@ -242,7 +244,7 @@ async function main() {
       id: author.id,
       kind: 'author' as const,
       title: author.name,
-      subtitle: author.dynasty,
+      subtitle: '',
       text: author.themes.join(' ')
     })),
     ...poems.map((poem) => {
@@ -291,6 +293,7 @@ async function main() {
     writeJson(new URL('search-index.json', outputRoot), searchIndex),
     writeJson(new URL('manifest.json', outputRoot), manifest)
   ]);
+  console.log('Verified source identity via ' + sourceIdentity);
   console.log('Imported ' + classical.length + ' classical poems and ' + modern.length + ' modern metadata records');
 }
 

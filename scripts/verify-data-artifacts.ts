@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { AuthorRecord, FeaturedCorpus, PoemRecord } from '../src/data/schema';
 import { parseManifest } from '../src/data/schema';
+import { assertExactRouting } from '../src/data/import/artifact-validation';
 
 interface SearchEntry {
   id: string;
@@ -19,11 +20,19 @@ const manifest = parseManifest(await readJson<unknown>('manifest.json'));
 if (manifest.poemShards.some((shard) => shard.count < 1 || shard.count > 500)) process.exit(1);
 
 const poems: PoemRecord[] = [];
+const actualPoemShardPaths = new Map<string, string>();
+const actualAuthorShardIdSets = new Map<string, Set<string>>();
 for (const shard of manifest.poemShards) {
   const raw = await readFile(new URL(shard.path, root), 'utf8');
   const records = JSON.parse(raw) as PoemRecord[];
   const actualChecksum = createHash('sha256').update(raw).digest('hex').slice(0, 16);
   if (records.length !== shard.count || actualChecksum !== shard.checksum) throw new Error('Invalid shard: ' + shard.path);
+  for (const record of records) {
+    actualPoemShardPaths.set(record.id, shard.path);
+    const shardIds = actualAuthorShardIdSets.get(record.authorId) ?? new Set<string>();
+    shardIds.add(shard.id);
+    actualAuthorShardIdSets.set(record.authorId, shardIds);
+  }
   poems.push(...records);
 }
 
@@ -36,6 +45,9 @@ const poemIds = new Set(poems.map((poem) => poem.id));
 const poemsById = new Map(poems.map((poem) => [poem.id, poem]));
 const classicalPoems = poems.filter((poem) => poem.dynasty !== 'modern');
 const modernPoems = poems.filter((poem) => poem.dynasty === 'modern');
+const actualAuthorShardIds = new Map(
+  [...actualAuthorShardIdSets].map(([authorId, ids]) => [authorId, [...ids].sort()])
+);
 if (authors.length !== manifest.counts.authors || poems.length !== manifest.counts.poems) throw new Error('Manifest counts do not match artifacts');
 if (authorIds.size !== authors.length || poemIds.size !== poems.length) throw new Error('Artifact IDs must be unique');
 if (poems.some((poem) => !authorIds.has(poem.authorId))) throw new Error('Poem references an unknown author');
@@ -46,6 +58,7 @@ if (featured.relations.some((relation) => !relation.sourceLabel.trim() || !autho
 if (featured.authors.some((author) => !authorIds.has(author.id)) || featured.poems.some((poem) => !poemIds.has(poem.id))) throw new Error('Featured records must exist in the corpus');
 if (featured.relations.length !== manifest.counts.relations) throw new Error('Manifest relation count does not match featured relations');
 if (searchIndex.length !== authors.length + poems.length) throw new Error('Search index count does not match corpus');
+assertExactRouting(authors, searchIndex, actualPoemShardPaths, actualAuthorShardIds);
 for (const entry of searchIndex.filter((candidate) => candidate.kind === 'poem')) {
   const poem = poemsById.get(entry.id);
   if (!poem || entry.authorId !== poem.authorId || !entry.shardPath) throw new Error('Invalid poem search entry: ' + entry.id);
