@@ -53,6 +53,7 @@ describe('GlobalSearch', () => {
     render(
       <GlobalSearch client={searchClient([])} onSelectEntry={vi.fn()} onSearchInteraction={vi.fn()} onStatus={vi.fn()} />
     );
+    expect(screen.getByRole('searchbox')).toHaveAttribute('name', 'poetry-search');
     expect(screen.getByRole('searchbox')).not.toHaveAttribute('aria-expanded');
     expect(screen.getByRole('searchbox')).not.toHaveAttribute('aria-controls');
   });

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { QUALITY_PRESETS } from '../performance/quality';
 import { CosmicOperaScene } from './CosmicOperaScene';
 import type { CosmicOperaSceneProps } from './scene-contract';
-import { WebglContextGuard } from '../ui/SceneBoundary';
+import { WebglContextGuard } from './WebglContextGuard';
 
 export interface CosmicOperaStageProps extends CosmicOperaSceneProps {
   onFail: () => void;

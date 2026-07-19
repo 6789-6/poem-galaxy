@@ -22,4 +22,16 @@ describe('cosmic opera visual contract', () => {
     expect(motion).toContain('@media (prefers-reduced-motion: reduce)');
     expect(motion).toContain('.cinematic-intro');
   });
+
+  it('keeps motion compositor-friendly and mobile surfaces contained', () => {
+    expect(motion).not.toContain('letter-spacing');
+    expect(layout).toContain('touch-action: manipulation');
+    expect(layout).toContain('overscroll-behavior: contain');
+    expect(layout).toContain('text-wrap: balance');
+    expect(layout).toContain('env(safe-area-inset-left)');
+    expect(layout).toContain('env(safe-area-inset-right)');
+    expect(layout).toContain('@media (hover: hover)');
+    expect(layout).toContain('.static-author:hover');
+    expect(layout).toContain('overflow-wrap: anywhere');
+  });
 });

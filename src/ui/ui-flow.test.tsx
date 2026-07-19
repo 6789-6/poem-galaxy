@@ -20,8 +20,9 @@ afterEach(() => {
 function createTestClient({
   failFirstShard = false,
   includeTourAuthor = false,
+  authorsGate,
   requestLog
-}: { failFirstShard?: boolean; includeTourAuthor?: boolean; requestLog?: string[] } = {}) {
+}: { failFirstShard?: boolean; includeTourAuthor?: boolean; authorsGate?: Promise<void>; requestLog?: string[] } = {}) {
   const manifest = {
     version: 1,
     source: { repository: 'chinese-poetry/chinese-poetry', commit: 'b8594f81a89752241442f2ce267d6f66f96704ee', license: 'MIT' },
@@ -51,6 +52,7 @@ function createTestClient({
   const fetcher = (async (input: RequestInfo | URL) => {
     const file = new URL(String(input)).pathname.split('/').at(-1) ?? '';
     requestLog?.push(file);
+    if (file === 'authors.json' && authorsGate) await authorsGate;
     if (file === 'tang-001.json' && failFirstShard && shardAttempts++ === 0) {
       return new Response(null, { status: 503 });
     }
@@ -111,6 +113,22 @@ describe('PoemGalaxyApp flow', () => {
     expect(screen.getByText('国破山河在')).toBeInTheDocument();
     expect(requests.filter((path) => path === 'authors.json')).toHaveLength(1);
     expect(requests.indexOf('authors.json')).toBeLessThan(requests.indexOf('tang-001.json'));
+  });
+
+  it('starts author metadata and poem shard requests without a fetch waterfall', async () => {
+    let releaseAuthors!: () => void;
+    const authorsGate = new Promise<void>((resolve) => { releaseAuthors = resolve; });
+    const requests: string[] = [];
+    const user = userEvent.setup();
+    render(<PoemGalaxyApp client={createTestClient({ authorsGate, requestLog: requests })} />);
+
+    await user.type(await screen.findByRole('searchbox'), '春望');
+    await user.click(await screen.findByRole('option', { name: /春望/ }));
+    expect(requests).toContain('authors.json');
+    expect(requests).toContain('tang-001.json');
+
+    releaseAuthors();
+    expect(await screen.findByRole('heading', { name: '春望' })).toBeInTheDocument();
   });
 
   it('exposes network, tour, and HUD controls', async () => {

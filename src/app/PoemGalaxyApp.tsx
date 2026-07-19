@@ -52,7 +52,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
   const [selectionError, setSelectionError] = useState<Error | null>(null);
   const [sceneFailed, setSceneFailed] = useState(false);
   const [retrySelection, setRetrySelection] = useState<(() => void) | null>(null);
-  const [status, setStatus] = useState('正在载入诗词星河');
+  const [status, setStatus] = useState('正在载入诗词星河…');
   const authorsRef = useRef(authorsById);
   const poemsRef = useRef(poemsById);
   const client = useMemo(() => providedClient ?? new PoetryDataClient(), [providedClient]);
@@ -89,7 +89,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
 
   const boot = useCallback(() => {
     setLoadError(null);
-    setStatus('正在载入诗词星河');
+    setStatus('正在载入诗词星河…');
     return Promise.all([client.loadManifest(), client.loadFeatured()])
       .then(([nextManifest, nextFeatured]) => {
         setManifest(nextManifest);
@@ -145,15 +145,17 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
   const selectPoem = useCallback(async (poemId: string, authorId: string, shardPath?: string) => {
     clearSelectionFailure();
     try {
-      const author = await resolveAuthor(authorId);
-      let poem = poemsRef.current.get(poemId);
-      if (!poem) {
-        if (!shardPath) throw new DataLoadError(`poem:${poemId}`);
-        const shard = await client.loadPoemShard(shardPath);
-        poem = shard.find((candidate) => candidate.id === poemId);
-        if (!poem) throw new DataLoadError(shardPath);
+      const cachedPoem = poemsRef.current.get(poemId);
+      if (!cachedPoem && !shardPath) throw new DataLoadError(`poem:${poemId}`);
+
+      const authorRequest = resolveAuthor(authorId);
+      const poemRequest = cachedPoem ? Promise.resolve(cachedPoem) : client.loadPoemShard(shardPath!).then((shard) => {
+        const poem = shard.find((candidate) => candidate.id === poemId);
+        if (!poem) throw new DataLoadError(shardPath!);
         appendPoems(shard);
-      }
+        return poem;
+      });
+      const [author, poem] = await Promise.all([authorRequest, poemRequest]);
       dispatch({ type: 'SELECT_POEM', poemId: poem.id, authorId: author.id });
       setStatus(`正在阅读 ${poem.title}`);
     } catch (error) {
@@ -258,7 +260,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
           />
         ) : featured ? (
           <SceneBoundary onFail={failScene}>
-            <Suspense fallback={<div className="scene-loading">星图构建中</div>}>
+            <Suspense fallback={<div className="scene-loading">星图构建中…</div>}>
               <CosmicOperaStage
                 state={state}
                 quality={quality}
@@ -272,7 +274,7 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
               />
             </Suspense>
           </SceneBoundary>
-        ) : <div className="scene-loading">星图构建中</div>}
+        ) : <div className="scene-loading">星图构建中…</div>}
       </div>
 
       {state.hudVisible ? (

@@ -30,6 +30,18 @@ button {
   color: inherit;
 }
 
+button,
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgb(242 189 96 / 18%);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {
@@ -246,6 +258,7 @@ a:focus-visible {
   margin: 0;
   padding: .4rem;
   overflow: auto;
+  overscroll-behavior: contain;
   list-style: none;
   border: 1px solid var(--line);
   background: rgb(7 5 10 / 96%);
@@ -351,6 +364,7 @@ a:focus-visible {
   max-height: calc(100vh - 10rem);
   padding: clamp(1.25rem, 2.4vw, 2rem);
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--line);
   border-right: 3px solid rgb(242 189 96 / 48%);
   border-radius: var(--radius-panel) 0 0 var(--radius-panel);
@@ -382,6 +396,14 @@ a:focus-visible {
 .mobile-sheet p {
   color: var(--text-muted);
   line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.focus-panel a,
+.mobile-sheet a {
+  color: var(--molten-gold);
+  text-decoration-color: rgb(242 189 96 / 42%);
+  text-underline-offset: .22em;
 }
 
 .focus-panel ul,
@@ -585,6 +607,32 @@ a:focus-visible {
   border: 0 !important;
 }
 
+@media (hover: hover) {
+  .cinematic-intro > button:hover,
+  .focus-panel button:hover,
+  .mobile-sheet button:hover,
+  .load-error button:hover {
+    border-color: rgb(242 189 96 / 55%);
+    color: var(--ivory);
+    background: rgb(242 189 96 / 13%);
+  }
+
+  .dynasty-navigator label:hover,
+  .focus-panel a:hover,
+  .mobile-sheet a:hover {
+    color: var(--molten-white);
+  }
+
+  .static-author:hover {
+    color: var(--molten-gold);
+    transform: scale(1.08);
+  }
+
+  .static-author[aria-pressed='true']:hover {
+    transform: scale(1.16);
+  }
+}
+
 @media (max-width: 760px) {
   .poem-galaxy-app {
     min-height: 100dvh;
@@ -592,8 +640,9 @@ a:focus-visible {
 
   .exploration-header {
     top: max(1rem, env(safe-area-inset-top));
-    left: 1rem;
-    width: calc(100% - 2rem);
+    right: max(1rem, env(safe-area-inset-right));
+    left: max(1rem, env(safe-area-inset-left));
+    width: auto;
   }
 
   .cinematic-intro__title strong {
@@ -629,13 +678,14 @@ a:focus-visible {
 
   .mobile-sheet {
     position: absolute;
-    right: .75rem;
+    right: max(.75rem, env(safe-area-inset-right));
     bottom: calc(4.75rem + env(safe-area-inset-bottom));
-    left: .75rem;
+    left: max(.75rem, env(safe-area-inset-left));
     display: block;
     max-height: min(45dvh, 26rem);
     padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
     overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--line);
     border-bottom: 2px solid rgb(242 189 96 / 42%);
     border-radius: 1.2rem 1.2rem .35rem .35rem;
@@ -679,9 +729,9 @@ a:focus-visible {
   }
 
   .mode-dock {
-    right: .75rem;
+    right: max(.75rem, env(safe-area-inset-right));
     bottom: max(.45rem, env(safe-area-inset-bottom));
-    left: .75rem;
+    left: max(.75rem, env(safe-area-inset-left));
     justify-content: space-between;
     overflow-x: auto;
     backdrop-filter: blur(5px);

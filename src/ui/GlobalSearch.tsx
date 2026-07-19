@@ -203,6 +203,7 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
       <label htmlFor="poem-galaxy-search">搜索诗人或诗词</label>
       <input
         id="poem-galaxy-search"
+        name="poetry-search"
         type="search"
         role="searchbox"
         value={query}

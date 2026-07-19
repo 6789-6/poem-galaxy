@@ -4,9 +4,9 @@
 }
 
 @keyframes intro-title {
-  0% { opacity: 0; transform: translateY(2rem); letter-spacing: .45em; }
-  30%, 68% { opacity: 1; transform: translateY(0); letter-spacing: .18em; }
-  100% { opacity: 0; transform: translateY(-.5rem); letter-spacing: .22em; }
+  0% { opacity: 0; transform: translateY(2rem); }
+  30%, 68% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-.5rem); }
 }
 
 @keyframes intro-flare {
