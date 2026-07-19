@@ -33,6 +33,7 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
   const workerReadyTimerRef = useRef<number | null>(null);
   const pendingSearchesRef = useRef(new Map<number, PendingSearch>());
   const latestRequestIdRef = useRef(0);
+  const activeRef = useRef(true);
 
   const clearWorkerTimer = useCallback(() => {
     if (workerReadyTimerRef.current !== null) window.clearTimeout(workerReadyTimerRef.current);
@@ -49,7 +50,7 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
     workerReadyRejectRef.current = null;
     for (const pending of pendingSearchesRef.current.values()) pending.reject(error);
     pendingSearchesRef.current.clear();
-    onStatus('搜索线程不可用，已切换兼容搜索');
+    if (activeRef.current) onStatus('搜索线程不可用，已切换兼容搜索');
   }, [clearWorkerTimer, onStatus]);
 
   const ensureIndex = useCallback(() => {
@@ -57,7 +58,6 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
     if (indexPromiseRef.current) return indexPromiseRef.current;
     const request = client.loadSearchIndex().then((entries) => {
       entriesRef.current = entries;
-      onStatus('诗词索引已就绪');
       return entries;
     }).catch((error: unknown) => {
       indexPromiseRef.current = null;
@@ -65,9 +65,10 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
     });
     indexPromiseRef.current = request;
     return request;
-  }, [client, onStatus]);
+  }, [client]);
 
   const ensureWorker = useCallback((entries: SearchEntry[]) => {
+    if (!activeRef.current) return Promise.reject(new Error('Global search inactive'));
     if (workerFailedRef.current) return Promise.reject(new Error('Worker unavailable'));
     if (workerInitializationRef.current) return workerInitializationRef.current;
     if (workerAttemptedRef.current) return Promise.reject(new Error('Worker initialization unavailable'));
@@ -128,41 +129,55 @@ export function GlobalSearch({ client, onSelectEntry, onSearchInteraction, onSta
   }, [failWorker]);
 
   const runSearch = useCallback(async (queryValue: string, requestId: number) => {
+    const isCurrent = () => activeRef.current && requestId === latestRequestIdRef.current;
     try {
       const entries = await ensureIndex();
-      if (requestId !== latestRequestIdRef.current) return;
+      if (!isCurrent()) return;
+      onStatus('诗词索引已就绪');
+      if (!isCurrent()) return;
       let hits: SearchHit[];
       try {
+        if (!isCurrent()) return;
         await ensureWorker(entries);
+        if (!isCurrent()) return;
         hits = await searchWithWorker(queryValue, requestId);
+        if (!isCurrent()) return;
       } catch {
+        if (!isCurrent()) return;
         hits = await searchEntriesInBatches(entries, queryValue, SEARCH_LIMIT);
+        if (!isCurrent()) return;
       }
-      if (requestId !== latestRequestIdRef.current) return;
+      if (!isCurrent()) return;
       const entryById = new Map(entries.map((entry) => [entry.id, entry]));
       const nextResults = hits.flatMap((hit) => {
         const entry = entryById.get(hit.id);
         return entry ? [entry] : [];
       });
+      if (!isCurrent()) return;
       setResults(nextResults);
       setBusy(false);
       onStatus(nextResults.length ? `找到 ${nextResults.length} 条结果` : '没有找到匹配诗词');
     } catch (error) {
-      if (requestId !== latestRequestIdRef.current) return;
+      if (!isCurrent()) return;
       setResults([]);
       setBusy(false);
       onStatus(error instanceof Error ? error.message : '搜索索引加载失败');
     }
   }, [ensureIndex, ensureWorker, onStatus, searchWithWorker]);
 
-  useEffect(() => () => {
-    clearWorkerTimer();
-    workerRef.current?.terminate();
-    workerRef.current = null;
-    const unmounted = new Error('Global search unmounted');
-    workerReadyRejectRef.current?.(unmounted);
-    for (const pending of pendingSearchesRef.current.values()) pending.reject(unmounted);
-    pendingSearchesRef.current.clear();
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+      latestRequestIdRef.current += 1;
+      clearWorkerTimer();
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      const unmounted = new Error('Global search unmounted');
+      workerReadyRejectRef.current?.(unmounted);
+      for (const pending of pendingSearchesRef.current.values()) pending.reject(unmounted);
+      pendingSearchesRef.current.clear();
+    };
   }, [clearWorkerTimer]);
 
   const updateQuery = (value: string) => {

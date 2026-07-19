@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PoetryDataClient } from '../data/client';
@@ -149,5 +149,33 @@ describe('GlobalSearch', () => {
     expect(await screen.findByRole('option', { name: /静夜思/ })).toBeInTheDocument();
     worker.respond(worker.searches[0].requestId, []);
     expect(screen.getByRole('option', { name: /静夜思/ })).toBeInTheDocument();
+  });
+
+  it('does not construct a Worker or write status after a pending index load unmounts', async () => {
+    vi.stubGlobal('Worker', SearchWorkerDouble);
+    let resolveIndex!: (response: Response) => void;
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => { resolveIndex = resolve; })) as unknown as typeof fetch;
+    const onStatus = vi.fn();
+    const user = userEvent.setup();
+    const view = render(
+      <GlobalSearch
+        client={new PoetryDataClient(fetcher)}
+        onSelectEntry={vi.fn()}
+        onSearchInteraction={vi.fn()}
+        onStatus={onStatus}
+      />
+    );
+
+    await user.type(screen.getByRole('searchbox'), '静');
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => {
+      resolveIndex(new Response(JSON.stringify(entries), { status: 200 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(SearchWorkerDouble.instances).toHaveLength(0);
+    expect(onStatus).not.toHaveBeenCalled();
   });
 });

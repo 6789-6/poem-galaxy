@@ -67,6 +67,24 @@ describe('PoemGalaxyApp flow', () => {
     expect(await screen.findByRole('heading', { name: /李白/ })).toBeInTheDocument();
   });
 
+  it('keeps Escape hierarchy active while the searchbox is focused', async () => {
+    const user = userEvent.setup();
+    render(<PoemGalaxyApp client={createTestClient()} />);
+    const search = await screen.findByRole('searchbox');
+    await user.type(search, '静夜思');
+    await user.click(await screen.findByRole('option', { name: /静夜思/ }));
+    expect(await screen.findByRole('heading', { name: '静夜思' })).toBeInTheDocument();
+
+    await user.click(search);
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('heading', { name: '李白' })).toBeInTheDocument();
+    expect(search).toHaveValue('静夜思');
+
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('heading', { name: '中华诗词星河' })).toBeInTheDocument();
+    expect(search).toHaveValue('静夜思');
+  });
+
   it('keeps all six dynasty controls keyboard accessible', async () => {
     render(<PoemGalaxyApp client={createTestClient()} />);
     expect(await screen.findAllByRole('checkbox', { name: /先秦|汉魏六朝|唐|宋|元明清|近现代/ })).toHaveLength(6);

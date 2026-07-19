@@ -194,9 +194,17 @@ export function PoemGalaxyApp({ client: providedClient, forceStatic = false }: P
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        back();
+        return;
+      }
       const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
-      if (event.key === 'Escape') back();
+      if (
+        target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || (target instanceof HTMLElement && target.isContentEditable)
+      ) return;
       if (event.key.toLowerCase() === 'h') dispatch({ type: 'TOGGLE_HUD' });
     };
     window.addEventListener('keydown', handleKeyDown);
