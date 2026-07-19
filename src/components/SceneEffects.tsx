@@ -18,15 +18,17 @@ export default function SceneEffects({ mode, visualQuality }: { mode: GalaxyMode
         intensity={mode === 'reading' ? bloom.intensityReading : bloom.intensity}
         radius={bloom.radius}
       />
-      {dof && (
+      {dof ? (
         <DepthOfField
           focusDistance={dof.focusDistance}
           focalLength={dof.focalLength}
           bokehScale={dof.bokehScale}
           height={dof.height}
         />
+      ) : (
+        <></>
       )}
-      {preset.vignette && <Vignette eskil={false} offset={0.18} darkness={0.66} />}
+      {preset.vignette ? <Vignette eskil={false} offset={0.18} darkness={0.66} /> : <></>}
     </EffectComposer>
   );
 }

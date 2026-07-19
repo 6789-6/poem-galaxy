@@ -1,4 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber';
+import { PerspectiveCamera } from '@react-three/drei';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -65,7 +66,7 @@ export default function CenterBurstOverlay() {
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 3, mixBlendMode: 'screen', opacity: 0.78 }} aria-hidden="true">
       <Canvas dpr={[1, 1.35]} gl={{ alpha: true, antialias: false, powerPreference: 'high-performance' }} onCreated={({ gl }) => gl.setClearColor('#000000', 0)}>
-        <perspectiveCamera makeDefault position={[0, 6, 34]} fov={42} />
+        <PerspectiveCamera makeDefault position={[0, 6, 34]} fov={42} />
         <CenterBurstCloud />
       </Canvas>
     </div>
