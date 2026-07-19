@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { consumeVisibleFrameDelta, useVisibilityFrameTiming } from '../scene-timing';
 
 const vertexShader = `
   varying vec2 vUv;
@@ -26,12 +27,9 @@ const fragmentShader = `
   }
 `;
 
-function pageIsHidden() {
-  return typeof document !== 'undefined' && document.hidden;
-}
-
 export function AccretionDisk() {
   const disk = useRef<THREE.Group>(null);
+  const frameTiming = useVisibilityFrameTiming();
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -47,10 +45,13 @@ export function AccretionDisk() {
     []
   );
 
+  useEffect(() => () => material.dispose(), [material]);
+
   useFrame((_, delta) => {
-    if (pageIsHidden()) return;
-    material.uniforms.uTime.value += delta;
-    if (disk.current) disk.current.rotation.z += delta * 0.012;
+    const visibleDelta = consumeVisibleFrameDelta(frameTiming, delta);
+    if (visibleDelta === null) return;
+    material.uniforms.uTime.value += visibleDelta;
+    if (disk.current) disk.current.rotation.z += visibleDelta * 0.012;
   });
 
   return (

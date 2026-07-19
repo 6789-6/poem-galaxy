@@ -30,9 +30,9 @@ export function authorPosition(author: AuthorRecord): [number, number, number] {
   ];
 }
 
-export function poemPosition(poem: PoemRecord, index: number): [number, number, number] {
+export function poemPosition(poem: PoemRecord, _index: number): [number, number, number] {
   const band = DYNASTY_BANDS[poem.dynasty];
-  const angle = band.phase + hash01(poem.id) * Math.PI * 2 + index * 0.0007;
+  const angle = band.phase + hash01(poem.id) * Math.PI * 2;
   const radius = band.radius * (0.62 + hash01(`${poem.id}:radius`) * 0.42);
   return [
     Math.cos(angle) * radius,

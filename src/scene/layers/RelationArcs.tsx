@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { AuthorRecord, RelationRecord } from '../../data/schema';
 import { authorPosition } from '../geometry/poetry-layout';
@@ -37,6 +37,8 @@ export function RelationArcs({ authors, relations }: RelationArcsProps) {
     buffer.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     return buffer;
   }, [authors, relations]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <lineSegments geometry={geometry}>

@@ -8,14 +8,21 @@ import { PoetStars } from './layers/PoetStars';
 import { RelationArcs } from './layers/RelationArcs';
 import type { CosmicOperaSceneProps } from './scene-contract';
 import { ScenePostProcessing } from './ScenePostProcessing';
+import { consumeVisibleFrameDelta, useVisibilityFrameTiming } from './scene-timing';
 
 function RollingFpsReporter({ onFpsSample }: Pick<CosmicOperaSceneProps, 'onFpsSample'>) {
   const elapsed = useRef(0);
   const frames = useRef(0);
+  const frameTiming = useVisibilityFrameTiming();
 
   useFrame((_, delta) => {
-    if (typeof document !== 'undefined' && document.hidden) return;
-    elapsed.current += delta;
+    const visibleDelta = consumeVisibleFrameDelta(frameTiming, delta);
+    if (visibleDelta === null) {
+      elapsed.current = 0;
+      frames.current = 0;
+      return;
+    }
+    elapsed.current += visibleDelta;
     frames.current += 1;
     if (elapsed.current < 2) return;
     onFpsSample(frames.current / elapsed.current);
