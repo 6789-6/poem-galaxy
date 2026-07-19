@@ -4,3 +4,10 @@ dist
 .env
 .vscode
 .idea
+.superpowers/
+.worktrees/
+.cache/
+output/
+playwright-report/
+test-results/
+*.tsbuildinfo

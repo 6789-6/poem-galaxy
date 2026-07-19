@@ -30,10 +30,22 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verify poetry data
+        run: npm run data:verify
 
       - name: Build
         run: npm run build
+
+      - name: Verify bundle budgets
+        run: npm run budget
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

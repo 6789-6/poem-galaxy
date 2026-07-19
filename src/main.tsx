@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import PoemGalaxyVideoClone from './PoemGalaxyVideoClone';
+import { PoemGalaxyApp } from './app/PoemGalaxyApp';
 
 const root = document.getElementById('root');
+if (!root) throw new Error('Missing #root mount point');
+const forceStatic = new URLSearchParams(window.location.search).get('static') === '1';
 
-if (root) {
-  ReactDOM.createRoot(root).render(
-    <React.StrictMode>
-      <PoemGalaxyVideoClone />
-    </React.StrictMode>
-  );
-}
+ReactDOM.createRoot(root).render(
+  <React.StrictMode>
+    <PoemGalaxyApp forceStatic={forceStatic} />
+  </React.StrictMode>
+);

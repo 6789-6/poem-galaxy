@@ -1,0 +1,21 @@
+:root {
+  color-scheme: dark;
+  --void: #020204;
+  --void-raised: #09070d;
+  --ink-panel: rgb(10 5 17 / 82%);
+  --ivory: #fff5dc;
+  --text: #eee8dc;
+  --text-muted: #968e9e;
+  --molten-gold: #f2bd60;
+  --molten-white: #fff0bf;
+  --flare-orange: #ff6f3c;
+  --energy-violet: #7d32ef;
+  --energy-soft: #b88aff;
+  --line: rgb(255 232 190 / 16%);
+  --focus: #ffd77c;
+  --radius-panel: 1.5rem;
+  --font-display: "Songti SC", "STSong", Georgia, serif;
+  --font-reading: "KaiTi", "STKaiti", serif;
+  --font-ui: "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-hud: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
